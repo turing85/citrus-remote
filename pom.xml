@@ -22,6 +22,8 @@
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
 
+    <maven.compat.version>3.0</maven.compat.version>
+    <maven.archiver.version>3.2.0</maven.archiver.version>
     <maven.antrun.plugin.version>3.0.0</maven.antrun.plugin.version>
     <maven.assembly.plugin.version>3.1.1</maven.assembly.plugin.version>
     <maven.changes.plugin.version>2.12.1</maven.changes.plugin.version>
@@ -35,6 +37,7 @@
     <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
     <maven.javadoc.plugin.version>3.3.1</maven.javadoc.plugin.version>
     <maven.nexus-staging.plugin.version>1.6.13</maven.nexus-staging.plugin.version>
+    <maven.plugin.annotations.version>3.7.1</maven.plugin.annotations.version>
     <maven.plugin.plugin.version>3.6.2</maven.plugin.plugin.version>
     <maven.release.plugin.version>2.5.3</maven.release.plugin.version>
     <maven.resource.plugin.version>3.0.2</maven.resource.plugin.version>
@@ -198,6 +201,36 @@
       </dependency>
       <dependency>
         <groupId>org.apache.maven</groupId>
+        <artifactId>maven-compat</artifactId>
+        <version>${maven.compat.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.maven</groupId>
+        <artifactId>maven-archiver</artifactId>
+        <version>${maven.archiver.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.maven</groupId>
+        <artifactId>maven-settings</artifactId>
+        <version>${maven.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.maven</groupId>
+        <artifactId>maven-builder-support</artifactId>
+        <version>${maven.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.maven</groupId>
+        <artifactId>maven-model-builder</artifactId>
+        <version>${maven.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.maven</groupId>
         <artifactId>maven-model</artifactId>
         <version>${maven.version}</version>
         <scope>provided</scope>
@@ -211,7 +244,7 @@
       <dependency>
         <groupId>org.apache.maven.plugin-tools</groupId>
         <artifactId>maven-plugin-annotations</artifactId>
-        <version>3.7.1</version>
+        <version>${maven.plugin.annotations.version}</version>
         <scope>provided</scope>
       </dependency>
     </dependencies>
