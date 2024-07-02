@@ -56,7 +56,7 @@
     <jakarta.servlet-api.version>4.0.4</jakarta.servlet-api.version>
     <log4j2.version>2.20.0</log4j2.version>
     <slf4j.version>2.0.6</slf4j.version>
-    <sparkjava.core.version>2.9.4</sparkjava.core.version>
+    <sparkjava.core.version>3.0</sparkjava.core.version>
 
     <!-- Documentation -->
     <javadoc.options>-Xdoclint:none</javadoc.options>
@@ -126,7 +126,7 @@
         <version>${httpclient.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.sparkjava</groupId>
+        <groupId>org.zoomba-lang</groupId>
         <artifactId>spark-core</artifactId>
         <version>${sparkjava.core.version}</version>
       </dependency>

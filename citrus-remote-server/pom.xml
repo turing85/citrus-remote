@@ -15,7 +15,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.sparkjava</groupId>
+      <groupId>org.zoomba-lang</groupId>
       <artifactId>spark-core</artifactId>
     </dependency>
     <dependency>
