@@ -16,8 +16,8 @@
 
 package com.consol.citrus.remote.model;
 
-import com.consol.citrus.TestResult;
-import com.consol.citrus.exceptions.CitrusRuntimeException;
+import org.citrusframework.TestResult;
+import org.citrusframework.exceptions.CitrusRuntimeException;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -85,9 +85,9 @@ public class RemoteResult {
         } else if (remoteResult.isSkipped()) {
             return TestResult.skipped(remoteResult.getTestName(), remoteResult.getTestClass());
         } else if (remoteResult.isFailed()) {
+            // TODO: Check if this is fine, failure stack, failure type are never used in the new Citrus version
             return TestResult.failed(remoteResult.getTestName(), remoteResult.getTestClass(), remoteResult.getErrorMessage())
-                             .withFailureType(remoteResult.getCause())
-                             .withFailureStack(remoteResult.getFailureStack());
+                             .withFailureType(remoteResult.getCause());
         } else {
             throw new CitrusRuntimeException("Unexpected test result state " + remoteResult.getTestName());
         }

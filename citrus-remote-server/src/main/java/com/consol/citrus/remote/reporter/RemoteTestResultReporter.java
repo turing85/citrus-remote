@@ -18,9 +18,9 @@ package com.consol.citrus.remote.reporter;
 
 import java.io.StringWriter;
 
-import com.consol.citrus.report.AbstractTestReporter;
-import com.consol.citrus.report.OutputStreamReporter;
-import com.consol.citrus.report.TestResults;
+import org.citrusframework.report.AbstractTestReporter;
+import org.citrusframework.report.OutputStreamReporter;
+import org.citrusframework.report.TestResults;
 
 /**
  * @author Christoph Deppisch

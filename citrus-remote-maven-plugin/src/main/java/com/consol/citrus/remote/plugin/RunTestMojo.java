@@ -25,17 +25,17 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.consol.citrus.TestClass;
-import com.consol.citrus.exceptions.CitrusRuntimeException;
-import com.consol.citrus.main.TestRunConfiguration;
+import org.citrusframework.TestClass;
+import org.citrusframework.exceptions.CitrusRuntimeException;
+import org.citrusframework.main.TestRunConfiguration;
 import com.consol.citrus.remote.model.RemoteResult;
 import com.consol.citrus.remote.plugin.config.RunConfiguration;
-import com.consol.citrus.report.HtmlReporter;
-import com.consol.citrus.report.JUnitReporter;
-import com.consol.citrus.report.OutputStreamReporter;
-import com.consol.citrus.report.SummaryReporter;
-import com.consol.citrus.report.TestResults;
-import com.consol.citrus.util.FileUtils;
+import org.citrusframework.report.HtmlReporter;
+import org.citrusframework.report.JUnitReporter;
+import org.citrusframework.report.OutputStreamReporter;
+import org.citrusframework.report.SummaryReporter;
+import org.citrusframework.report.TestResults;
+import org.citrusframework.util.FileUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
@@ -121,7 +121,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
         TestRunConfiguration runConfiguration = new TestRunConfiguration();
 
         runConfiguration.setEngine(run.getEngine());
-        runConfiguration.setTestClasses(classes.stream()
+        runConfiguration.setTestSources(classes.stream()
                                                 .map(TestClass::fromString)
                                                 .collect(Collectors.toList()));
 

@@ -30,27 +30,21 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.consol.citrus.Citrus;
-import com.consol.citrus.CitrusInstanceManager;
-import com.consol.citrus.CitrusInstanceStrategy;
-import com.consol.citrus.TestClass;
-import com.consol.citrus.exceptions.CitrusRuntimeException;
-import com.consol.citrus.main.CitrusAppConfiguration;
-import com.consol.citrus.main.TestRunConfiguration;
+import org.citrusframework.*;
+import org.citrusframework.exceptions.CitrusRuntimeException;
+import org.citrusframework.main.CitrusAppConfiguration;
+import org.citrusframework.main.TestRunConfiguration;
 import com.consol.citrus.remote.controller.RunController;
 import com.consol.citrus.remote.job.RunJob;
 import com.consol.citrus.remote.model.RemoteResult;
 import com.consol.citrus.remote.reporter.RemoteTestResultReporter;
 import com.consol.citrus.remote.transformer.JsonRequestTransformer;
 import com.consol.citrus.remote.transformer.JsonResponseTransformer;
-import com.consol.citrus.report.JUnitReporter;
-import com.consol.citrus.report.LoggingReporter;
-import com.consol.citrus.util.FileUtils;
+import org.citrusframework.report.JUnitReporter;
+import org.citrusframework.report.LoggingReporter;
+import org.citrusframework.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 import spark.Filter;
 import spark.servlet.SparkApplication;
 
@@ -192,7 +186,7 @@ public class CitrusRemoteApplication implements SparkApplication {
                 }
 
                 if (req.queryParams().contains("includes")) {
-                    runConfiguration.setIncludes(StringUtils.commaDelimitedListToStringArray(URLDecoder.decode(req.queryParams("includes"), ENCODING)));
+                    runConfiguration.setIncludes(URLDecoder.decode(req.queryParams("includes"), ENCODING).split(","));
                 }
 
                 if (req.queryParams().contains("package")) {
@@ -200,7 +194,7 @@ public class CitrusRemoteApplication implements SparkApplication {
                 }
 
                 if (req.queryParams().contains("class")) {
-                    runConfiguration.setTestClasses(Collections.singletonList(TestClass.fromString(URLDecoder.decode(req.queryParams("class"), ENCODING))));
+                    runConfiguration.setTestSources(Collections.singletonList(TestClass.fromString(URLDecoder.decode(req.queryParams("class"), ENCODING))));
                 }
 
                 res.type(APPLICATION_JSON);
@@ -254,20 +248,20 @@ public class CitrusRemoteApplication implements SparkApplication {
         runController.setEngine(runConfiguration.getEngine());
         runController.setIncludes(runConfiguration.getIncludes());
 
-        if (!CollectionUtils.isEmpty(runConfiguration.getDefaultProperties())) {
+        if (!runConfiguration.getDefaultProperties().isEmpty()) {
             runController.addDefaultProperties(runConfiguration.getDefaultProperties());
         }
 
-        if (CollectionUtils.isEmpty(runConfiguration.getPackages()) && CollectionUtils.isEmpty(runConfiguration.getTestClasses())) {
+        if (runConfiguration.getPackages().isEmpty() && runConfiguration.getTestSources().isEmpty()) {
             runController.runAll();
         }
 
-        if (!CollectionUtils.isEmpty(runConfiguration.getPackages())) {
+        if (!runConfiguration.getPackages().isEmpty()) {
             runController.runPackages(runConfiguration.getPackages());
         }
 
-        if (!CollectionUtils.isEmpty(runConfiguration.getTestClasses())) {
-            runController.runClasses(runConfiguration.getTestClasses());
+        if (!runConfiguration.getTestSources().isEmpty()) {
+            runController.runClasses(runConfiguration.getTestSources());
         }
 
         List<RemoteResult> results = new ArrayList<>();
@@ -280,9 +274,10 @@ public class CitrusRemoteApplication implements SparkApplication {
      * @return
      */
     private String getJUnitReportsFolder() {
-        if (ClassUtils.isPresent("org.testng.annotations.Test", getClass().getClassLoader())) {
+
+        if (isPresent("org.testng.annotations.Test")) {
             return "test-output" + File.separator + "junitreports";
-        } else if (ClassUtils.isPresent("org.junit.Test", getClass().getClassLoader())) {
+        } else if (isPresent("org.junit.Test")) {
             JUnitReporter jUnitReporter = new JUnitReporter();
             return jUnitReporter.getReportDirectory() + File.separator + jUnitReporter.getOutputDirectory();
         } else {
@@ -296,6 +291,17 @@ public class CitrusRemoteApplication implements SparkApplication {
         if (citrus.isPresent()) {
             LOG.info("Closing Citrus and its application context");
             citrus.get().close();
+        }
+    }
+
+    // TODO: Check if this is equivalent to
+    // https://github.com/spring-projects/spring-framework/blob/main/spring-core/src/main/java/org/springframework/util/ClassUtils.java
+    private boolean isPresent(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 }

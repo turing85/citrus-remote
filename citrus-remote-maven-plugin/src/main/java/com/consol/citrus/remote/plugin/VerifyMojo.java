@@ -16,7 +16,7 @@
 
 package com.consol.citrus.remote.plugin;
 
-import com.consol.citrus.util.FileUtils;
+import org.citrusframework.util.FileUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.*;

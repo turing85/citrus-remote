@@ -18,9 +18,9 @@ package com.consol.citrus.remote;
 
 import java.util.LinkedList;
 
-import com.consol.citrus.exceptions.CitrusRuntimeException;
-import com.consol.citrus.main.CitrusAppOptions;
-import org.springframework.util.StringUtils;
+import org.citrusframework.exceptions.CitrusRuntimeException;
+import org.citrusframework.main.CitrusAppOptions;
+import org.citrusframework.util.StringUtils;
 
 /**
  * @author Christoph Deppisch
