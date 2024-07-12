@@ -27,6 +27,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
+import org.apache.hc.core5.http.message.BasicHeader;
 import org.citrusframework.TestClass;
 import org.citrusframework.exceptions.CitrusRuntimeException;
 import org.citrusframework.main.TestRunConfiguration;
@@ -38,15 +44,6 @@ import org.citrusframework.report.OutputStreamReporter;
 import org.citrusframework.report.SummaryReporter;
 import org.citrusframework.report.TestResults;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.http.HttpHeaders;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.RequestBuilder;
-import org.apache.http.client.utils.HttpClientUtils;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.util.EntityUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -76,7 +73,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
     /**
      * Object mapper for JSON response to object conversion.
      */
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public void doExecute() throws MojoExecutionException, MojoFailureException {
@@ -153,19 +150,18 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
      * that creates a new run job on the server. The test results are then polled with multiple requests instead of processing the single synchronous response.
      *
      * @param runConfiguration
-     * @return
      * @throws MojoExecutionException
      */
     private void runTests(TestRunConfiguration runConfiguration) throws MojoExecutionException {
-        HttpResponse response = null;
+        CloseableHttpResponse response = null;
 
         try {
-            RequestBuilder requestBuilder;
+            ClassicRequestBuilder requestBuilder;
 
             if (run.isAsync()) {
-                requestBuilder = RequestBuilder.put(getServer().getUrl() + "/run");
+                requestBuilder = ClassicRequestBuilder.put(getServer().getUrl() + "/run");
             } else {
-                requestBuilder = RequestBuilder.post(getServer().getUrl() + "/run");
+                requestBuilder = ClassicRequestBuilder.post(getServer().getUrl() + "/run");
             }
 
             requestBuilder.addHeader(new BasicHeader(HttpHeaders.ACCEPT, ContentType.APPLICATION_JSON.getMimeType()));
@@ -175,20 +171,19 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
 
             response = getHttpClient().execute(requestBuilder.build());
 
-            if (HttpStatus.SC_OK != response.getStatusLine().getStatusCode()) {
+            if (HttpStatus.SC_OK != response.getCode()) {
                 throw new MojoExecutionException("Failed to run tests on remote server: " + EntityUtils.toString(response.getEntity()));
             }
 
             if (run.isAsync()) {
-                HttpClientUtils.closeQuietly(response);
+                response.close();
                 handleTestResults(pollTestResults());
             } else {
                 handleTestResults(objectMapper.readValue(response.getEntity().getContent(), RemoteResult[].class));
+                response.close();
             }
-        } catch (IOException e) {
+        } catch (IOException | ParseException e) {
             throw new MojoExecutionException("Failed to run tests on remote server", e);
-        } finally {
-            HttpClientUtils.closeQuietly(response);
         }
     }
 
@@ -196,35 +191,37 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
      * When using async test execution mode the client does not synchronously wait for test results as it might lead to read timeouts. Instead
      * this method polls for test results and waits for the test execution to completely finish.
      *
-     * @return
      * @throws MojoExecutionException
      */
-    private RemoteResult[] pollTestResults() throws MojoExecutionException {
-        HttpResponse response = null;
+    private RemoteResult[] pollTestResults() throws MojoExecutionException, IOException {
+        CloseableHttpResponse response = null;
         try {
             do {
-                HttpClientUtils.closeQuietly(response);
-                response = getHttpClient().execute(RequestBuilder.get(getServer().getUrl() + "/results")
+                if (response != null)
+                    response.close();
+
+                response = getHttpClient().execute(ClassicRequestBuilder.get(getServer().getUrl() + "/results")
                         .addHeader(new BasicHeader(HttpHeaders.ACCEPT, ContentType.APPLICATION_JSON.getMimeType()))
                         .addParameter("timeout", String.valueOf(run.getPollingInterval()))
                         .build());
 
-                if (HttpStatus.SC_PARTIAL_CONTENT == response.getStatusLine().getStatusCode()) {
+                if (HttpStatus.SC_PARTIAL_CONTENT == response.getCode()) {
                     getLog().info("Waiting for remote tests to finish ...");
                     getLog().info(Stream.of(objectMapper.readValue(response.getEntity().getContent(), RemoteResult[].class))
                             .map(RemoteResult::toTestResult).map(result -> result.isSkipped() ? "x" : (result.isSuccess() ? "+" : "-")).collect(Collectors.joining()));
                 }
-            } while (HttpStatus.SC_PARTIAL_CONTENT == response.getStatusLine().getStatusCode());
+            } while (HttpStatus.SC_PARTIAL_CONTENT == response.getCode());
 
-            if (HttpStatus.SC_OK != response.getStatusLine().getStatusCode()) {
+            if (HttpStatus.SC_OK != response.getCode()) {
                 throw new MojoExecutionException("Failed to get test results from remote server: " + EntityUtils.toString(response.getEntity()));
             }
 
             return objectMapper.readValue(response.getEntity().getContent(), RemoteResult[].class);
-        } catch (IOException e) {
+        } catch (IOException | ParseException e) {
             throw new MojoExecutionException("Failed to get test results from remote server", e);
         } finally {
-            HttpClientUtils.closeQuietly(response);
+            if (response != null)
+                response.close();
         }
     }
 
@@ -233,7 +230,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
      * @param results
      * @throws IOException
      */
-    private void handleTestResults(RemoteResult[] results) {
+    private void handleTestResults(RemoteResult[] results) throws IOException {
         StringWriter resultWriter = new StringWriter();
         resultWriter.append(String.format("%n"));
 
@@ -258,19 +255,19 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
         getAndSaveReports();
     }
 
-    private void getAndSaveReports() {
+    private void getAndSaveReports() throws IOException {
         if (!getReport().isSaveReportFiles()) {
             return;
         }
 
-        HttpResponse response = null;
+        CloseableHttpResponse response = null;
         String[] reportFiles = {};
         try {
-            response = getHttpClient().execute(RequestBuilder.get(getServer().getUrl() + "/results/files")
+            response = getHttpClient().execute(ClassicRequestBuilder.get(getServer().getUrl() + "/results/files")
                     .addHeader(new BasicHeader(HttpHeaders.ACCEPT, ContentType.APPLICATION_XML.getMimeType()))
                     .build());
 
-            if (HttpStatus.SC_OK != response.getStatusLine().getStatusCode()) {
+            if (HttpStatus.SC_OK != response.getCode()) {
                 getLog().warn("Failed to get test reports from remote server");
             }
 
@@ -278,7 +275,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
         } catch (IOException e) {
             getLog().warn("Failed to get test reports from remote server", e);
         } finally {
-            HttpClientUtils.closeQuietly(response);
+            if (response != null) response.close();
         }
 
         File citrusReportsDirectory = new File(getOutputDirectory() + File.separator + getReport().getDirectory());
@@ -316,13 +313,11 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
      * @param contentType
      */
     private void loadAndSaveReportFile(File reportFile, String serverUrl, String contentType) {
-        HttpResponse fileResponse = null;
-        try {
-            fileResponse = getHttpClient().execute(RequestBuilder.get(serverUrl)
-                    .addHeader(new BasicHeader(HttpHeaders.ACCEPT, contentType))
-                    .build());
+        try (CloseableHttpResponse fileResponse = getHttpClient().execute(ClassicRequestBuilder.get(serverUrl)
+                .addHeader(new BasicHeader(HttpHeaders.ACCEPT, contentType))
+                .build())) {
 
-            if (HttpStatus.SC_OK != fileResponse.getStatusLine().getStatusCode()) {
+            if (HttpStatus.SC_OK != fileResponse.getCode()) {
                 getLog().warn("Failed to get report file: " + reportFile.getName());
                 return;
             }
@@ -331,8 +326,6 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
             Files.write(reportFile.toPath(), fileResponse.getEntity().getContent().readAllBytes(), StandardOpenOption.CREATE);
         } catch (IOException e) {
             getLog().warn("Failed to get report file: " + reportFile.getName(), e);
-        } finally {
-            HttpClientUtils.closeQuietly(fileResponse);
         }
     }
 
