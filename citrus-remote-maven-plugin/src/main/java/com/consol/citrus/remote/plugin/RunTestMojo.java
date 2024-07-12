@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,7 +37,6 @@ import org.citrusframework.report.JUnitReporter;
 import org.citrusframework.report.OutputStreamReporter;
 import org.citrusframework.report.SummaryReporter;
 import org.citrusframework.report.TestResults;
-import org.citrusframework.util.FileUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
@@ -327,7 +328,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
             }
 
             getLog().info("Writing report file: " + reportFile);
-            FileUtils.writeToFile(fileResponse.getEntity().getContent(), reportFile);
+            Files.write(reportFile.toPath(), fileResponse.getEntity().getContent().readAllBytes(), StandardOpenOption.CREATE);
         } catch (IOException e) {
             getLog().warn("Failed to get report file: " + reportFile.getName(), e);
         } finally {

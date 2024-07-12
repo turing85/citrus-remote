@@ -16,6 +16,8 @@
 
 package com.consol.citrus.remote.controller;
 
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +28,9 @@ import org.citrusframework.TestSource;
 import org.citrusframework.main.CitrusApp;
 import org.citrusframework.main.CitrusAppConfiguration;
 import com.consol.citrus.remote.CitrusRemoteConfiguration;
+import org.citrusframework.spi.ResourcePathTypeResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Christoph Deppisch
@@ -33,6 +38,7 @@ import com.consol.citrus.remote.CitrusRemoteConfiguration;
  */
 public class RunController {
 
+    private static final Logger logger = LoggerFactory.getLogger(RunController.class);
     /** Test engine to run the tests */
     private String engine;
 
@@ -70,9 +76,15 @@ public class RunController {
         citrusAppConfiguration.setIncludes(Optional.ofNullable(includes).orElse(configuration.getIncludes()));
         citrusAppConfiguration.setPackages(packages);
         citrusAppConfiguration.setConfigClass(configuration.getConfigClass());
+        citrusAppConfiguration.setTestJar(configuration.getTestJar());
         citrusAppConfiguration.addDefaultProperties(configuration.getDefaultProperties());
         citrusAppConfiguration.addDefaultProperties(defaultProperties);
-        run(citrusAppConfiguration);
+        try {
+            citrusAppConfiguration.setTestJar(Path.of(ResourcePathTypeResolver.ROOT.toURI()).toFile());
+            run(citrusAppConfiguration);
+        } catch (URISyntaxException e) {
+            logger.error("Cannot transform URI {} to path", ResourcePathTypeResolver.ROOT, e);
+        }
     }
 
     /**
@@ -84,11 +96,16 @@ public class RunController {
 
         citrusAppConfiguration.setEngine(engine);
         citrusAppConfiguration.setTestSources(testSources);
+        citrusAppConfiguration.setTestJar(configuration.getTestJar());
         citrusAppConfiguration.setConfigClass(configuration.getConfigClass());
         citrusAppConfiguration.addDefaultProperties(configuration.getDefaultProperties());
         citrusAppConfiguration.addDefaultProperties(defaultProperties);
-
-        run(citrusAppConfiguration);
+        try {
+            citrusAppConfiguration.setTestJar(Path.of(ResourcePathTypeResolver.ROOT.toURI()).toFile());
+            run(citrusAppConfiguration);
+        } catch (URISyntaxException e) {
+            logger.error("Cannot transform URI {} to path", ResourcePathTypeResolver.ROOT, e);
+        }
     }
 
     /**

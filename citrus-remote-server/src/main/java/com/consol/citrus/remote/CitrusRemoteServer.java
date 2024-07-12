@@ -34,7 +34,7 @@ import static spark.Spark.port;
 public class CitrusRemoteServer {
 
     /** Logger */
-    private static Logger log = LoggerFactory.getLogger(CitrusRemoteServer.class);
+    private static Logger logger = LoggerFactory.getLogger(CitrusRemoteServer.class);
 
     /** Endpoint configuration */
     private final CitrusRemoteConfiguration configuration;
@@ -134,7 +134,7 @@ public class CitrusRemoteServer {
         try {
             return completed.get();
         } catch (InterruptedException | ExecutionException e) {
-            log.warn("Failed to wait for server completion", e);
+            logger.warn("Failed to wait for server completion", e);
         }
 
         return false;

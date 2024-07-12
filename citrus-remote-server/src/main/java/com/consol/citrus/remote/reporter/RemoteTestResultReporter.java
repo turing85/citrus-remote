@@ -17,16 +17,18 @@
 package com.consol.citrus.remote.reporter;
 
 import java.io.StringWriter;
-
 import org.citrusframework.report.AbstractTestReporter;
 import org.citrusframework.report.OutputStreamReporter;
 import org.citrusframework.report.TestResults;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Christoph Deppisch
  * @since 2.7.4
  */
 public class RemoteTestResultReporter extends AbstractTestReporter {
+    private static final Logger logger = LoggerFactory.getLogger(RemoteTestResultReporter.class);
 
     /** Test report */
     private String testReport;

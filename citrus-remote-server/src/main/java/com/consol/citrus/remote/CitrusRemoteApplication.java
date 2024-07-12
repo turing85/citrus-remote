@@ -18,16 +18,19 @@ package com.consol.citrus.remote;
 
 import java.io.File;
 import java.net.URLDecoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.citrusframework.*;
@@ -48,13 +51,7 @@ import org.slf4j.LoggerFactory;
 import spark.Filter;
 import spark.servlet.SparkApplication;
 
-import static spark.Spark.before;
-import static spark.Spark.exception;
-import static spark.Spark.get;
-import static spark.Spark.halt;
-import static spark.Spark.path;
-import static spark.Spark.post;
-import static spark.Spark.put;
+import static spark.Spark.*;
 
 /**
  * Remote application creates routes for this web application.
@@ -65,13 +62,14 @@ import static spark.Spark.put;
 public class CitrusRemoteApplication implements SparkApplication {
 
     /** Logger */
-    private static final Logger LOG = LoggerFactory.getLogger(CitrusRemoteApplication.class);
+    private static final Logger logger = LoggerFactory.getLogger(CitrusRemoteApplication.class);
 
     /** Global url encoding */
     private static final String ENCODING = "UTF-8";
     /** Content types */
     private static final String APPLICATION_JSON = "application/json";
     private static final String APPLICATION_XML = "application/xml";
+    private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
 
     /** Application configuration */
     private final CitrusRemoteConfiguration configuration;
@@ -89,6 +87,7 @@ public class CitrusRemoteApplication implements SparkApplication {
     /**
      * Default constructor using default configuration.
      */
+    @SuppressWarnings("unused")
     public CitrusRemoteApplication() {
         this(new CitrusRemoteConfiguration());
     }
@@ -108,11 +107,25 @@ public class CitrusRemoteApplication implements SparkApplication {
             citrus.addTestReporter(remoteTestResultReporter);
         });
 
-        before((Filter) (request, response) -> LOG.info(request.requestMethod() + " " + request.url() + Optional.ofNullable(request.queryString()).map(query -> "?" + query).orElse("")));
+        before((Filter) (request, response) -> logger.info(request.requestMethod() + " " + request.url() + Optional.ofNullable(request.queryString()).map(query -> "?" + query).orElse("")));
 
         get("/health", (req, res) -> {
             res.type(APPLICATION_JSON);
             return "{ \"status\": \"UP\" }";
+        });
+
+        get("/files/:name", (req, res) -> {
+            res.type(APPLICATION_OCTET_STREAM);
+            String fileName = req.params(":name");
+            Path file = Path.of(fileName);
+
+            if (Files.isRegularFile(file)) {
+                res.header(
+                    "Content-Disposition",
+                    "attachment; filename=\"" + file.getFileName() + "\"");
+                return Files.readAllBytes(file);
+            }
+            return null;
         });
 
         path("/results", () -> {
@@ -143,7 +156,10 @@ public class CitrusRemoteApplication implements SparkApplication {
                 File junitReportsFolder = new File(getJUnitReportsFolder());
 
                 if (junitReportsFolder.exists()) {
-                    return Stream.of(Optional.ofNullable(junitReportsFolder.list()).orElse(new String[] {})).collect(Collectors.toList());
+                    return Optional.ofNullable(junitReportsFolder.list())
+                        .stream().
+                        flatMap(Stream::of)
+                        .toList();
                 }
 
                 return Collections.emptyList();
@@ -289,7 +305,7 @@ public class CitrusRemoteApplication implements SparkApplication {
     public void destroy() {
         Optional<Citrus> citrus = CitrusInstanceManager.get();
         if (citrus.isPresent()) {
-            LOG.info("Closing Citrus and its application context");
+            logger.info("Closing Citrus and its application context");
             citrus.get().close();
         }
     }
