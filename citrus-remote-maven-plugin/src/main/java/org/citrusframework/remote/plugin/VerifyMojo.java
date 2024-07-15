@@ -16,10 +16,12 @@
 
 package org.citrusframework.remote.plugin;
 
-import org.citrusframework.util.FileUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.*;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.citrusframework.util.FileUtils;
 
 import java.io.File;
 import java.io.IOException;

@@ -16,8 +16,6 @@
 
 package org.citrusframework.remote.plugin;
 
-import org.citrusframework.remote.plugin.assembly.CitrusRemoteAssemblerConfigurationSource;
-import org.citrusframework.remote.plugin.config.*;
 import org.apache.maven.archiver.MavenArchiveConfiguration;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -34,6 +32,7 @@ import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
 import org.apache.maven.shared.filtering.MavenReaderFilter;
+import org.citrusframework.remote.plugin.assembly.CitrusRemoteAssemblerConfigurationSource;
 import org.citrusframework.remote.plugin.config.AssemblyConfiguration;
 import org.citrusframework.remote.plugin.config.AssemblyDescriptorConfiguration;
 import org.citrusframework.remote.plugin.config.TestJarConfiguration;
@@ -49,7 +48,7 @@ import java.util.Optional;
 public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRemoteMojo {
 
     @Parameter
-    protected AssemblyConfiguration assembly;
+    protected AssemblyConfiguration assemblyConfiguration;
 
     @Parameter
     protected TestJarConfiguration testJar;
@@ -93,38 +92,36 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
     @Override
     public void doExecute() throws MojoExecutionException, MojoFailureException {
         initializeAssembly();
-        createDirs(assembly);
-        createAssemblyArchive(assembly);
+        createDirs(assemblyConfiguration);
+        createAssemblyArchive(assemblyConfiguration);
     }
 
     protected void createDirs(AssemblyConfiguration assemblyConfig) {
         for (File dir : new File[] { assemblyConfig.getTemporaryRootDirectory(), assemblyConfig.getOutputDirectory(), assemblyConfig.getWorkingDirectory() }) {
-            if (!dir.exists()) {
-                if(!dir.mkdirs()) {
-                    throw new IllegalArgumentException("Cannot create directory " + dir.getAbsolutePath());
-                }
+            if (!dir.exists() && !dir.mkdirs()) {
+                throw new IllegalArgumentException("Cannot create directory " + dir.getAbsolutePath());
             }
         }
     }
 
     private void initializeAssembly() {
         if (!hasAssemblyConfiguration()) {
-            assembly = Optional.ofNullable(assembly).orElse(new AssemblyConfiguration());
+            assemblyConfiguration = Optional.ofNullable(assemblyConfiguration).orElse(new AssemblyConfiguration());
             AssemblyDescriptorConfiguration descriptorConfiguration = new AssemblyDescriptorConfiguration();
             descriptorConfiguration.setRef(getDefaultDescriptorRef());
-            assembly.setDescriptor(descriptorConfiguration);
+            assemblyConfiguration.setDescriptor(descriptorConfiguration);
         }
 
-        assembly.setOutputDirectory(getOutputDirectory());
-        assembly.setWorkingDirectory(workingDirectory);
-        assembly.setTemporaryRootDirectory(temporaryRootDirectory);
+        assemblyConfiguration.setOutputDirectory(getOutputDirectory());
+        assemblyConfiguration.setWorkingDirectory(workingDirectory);
+        assemblyConfiguration.setTemporaryRootDirectory(temporaryRootDirectory);
 
-        if (assembly.getArchive() == null) {
-            assembly.setArchive(new MavenArchiveConfiguration());
+        if (assemblyConfiguration.getArchive() == null) {
+            assemblyConfiguration.setArchive(new MavenArchiveConfiguration());
         }
 
-        if (assembly.getArchive().getManifest().getMainClass() == null){
-            assembly.getArchive().getManifest().setMainClass(mainClass);
+        if (assemblyConfiguration.getArchive().getManifest().getMainClass() == null){
+            assemblyConfiguration.getArchive().getManifest().setMainClass(mainClass);
         }
     }
 
@@ -135,10 +132,10 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
     protected abstract String getDefaultDescriptorRef();
 
     protected boolean hasAssemblyConfiguration() {
-        return assembly != null && assembly.getDescriptor() != null &&
-                (assembly.getDescriptor().getInline() != null ||
-                        assembly.getDescriptor().getFile() != null ||
-                        assembly.getDescriptor().getRef() != null);
+        return assemblyConfiguration != null && assemblyConfiguration.getDescriptor() != null &&
+                (assemblyConfiguration.getDescriptor().getInline() != null ||
+                        assemblyConfiguration.getDescriptor().getFile() != null ||
+                        assemblyConfiguration.getDescriptor().getRef() != null);
     }
 
     protected void createAssemblyArchive(AssemblyConfiguration assemblyConfig) throws MojoExecutionException {
@@ -181,10 +178,10 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
     /**
      * Sets the assembly.
      *
-     * @param assembly
+     * @param assemblyConfiguration
      */
-    public void setAssembly(AssemblyConfiguration assembly) {
-        this.assembly = assembly;
+    public void setAssemblyConfiguration(AssemblyConfiguration assemblyConfiguration) {
+        this.assemblyConfiguration = assemblyConfiguration;
     }
 
     /**
@@ -192,12 +189,12 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
      *
      * @return
      */
-    public AssemblyConfiguration getAssembly() {
+    public AssemblyConfiguration getAssemblyConfiguration() {
         if (!hasAssemblyConfiguration()) {
             initializeAssembly();
         }
 
-        return assembly;
+        return assemblyConfiguration;
     }
 
     /**

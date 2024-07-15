@@ -16,10 +16,10 @@
 
 package org.citrusframework.remote.plugin.config;
 
+import org.apache.maven.plugins.annotations.Parameter;
+
 import java.util.List;
 import java.util.Map;
-
-import org.apache.maven.plugins.annotations.Parameter;
 
 /**
  * @author Christoph Deppisch

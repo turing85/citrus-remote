@@ -16,10 +16,10 @@
 
 package org.citrusframework.remote.transformer;
 
-import org.citrusframework.exceptions.CitrusRuntimeException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.citrusframework.exceptions.CitrusRuntimeException;
 import spark.ResponseTransformer;
 
 /**

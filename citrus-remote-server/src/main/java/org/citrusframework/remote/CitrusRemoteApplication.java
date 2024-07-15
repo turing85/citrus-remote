@@ -16,22 +16,10 @@
 
 package org.citrusframework.remote;
 
-import java.io.File;
-import java.net.URLDecoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.stream.Stream;
-
-import org.citrusframework.*;
+import org.citrusframework.Citrus;
+import org.citrusframework.CitrusInstanceManager;
+import org.citrusframework.CitrusInstanceStrategy;
+import org.citrusframework.TestClass;
 import org.citrusframework.exceptions.CitrusRuntimeException;
 import org.citrusframework.main.CitrusAppConfiguration;
 import org.citrusframework.main.TestRunConfiguration;
@@ -48,6 +36,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Filter;
 import spark.servlet.SparkApplication;
+
+import java.io.File;
+import java.net.URLDecoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.*;
+import java.util.stream.Stream;
 
 import static spark.Spark.*;
 
@@ -101,11 +100,9 @@ public class CitrusRemoteApplication implements SparkApplication {
     @Override
     public void init() {
         CitrusInstanceManager.mode(CitrusInstanceStrategy.SINGLETON);
-        CitrusInstanceManager.addInstanceProcessor(citrus -> {
-            citrus.addTestReporter(remoteTestResultReporter);
-        });
+        CitrusInstanceManager.addInstanceProcessor(citrus -> citrus.addTestReporter(remoteTestResultReporter));
 
-        before((Filter) (request, response) -> logger.info(request.requestMethod() + " " + request.url() + Optional.ofNullable(request.queryString()).map(query -> "?" + query).orElse("")));
+        before((Filter) (request, response) -> logger.info("{} {}{}", request.requestMethod(), request.url(), Optional.ofNullable(request.queryString()).map(query -> "?" + query).orElse("")));
 
         get("/health", (req, res) -> {
             res.type(APPLICATION_JSON);

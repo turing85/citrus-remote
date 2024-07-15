@@ -16,14 +16,6 @@
 
 package org.citrusframework.remote.controller;
 
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import org.citrusframework.TestSource;
 import org.citrusframework.main.CitrusApp;
 import org.citrusframework.main.CitrusAppConfiguration;
@@ -31,6 +23,10 @@ import org.citrusframework.remote.CitrusRemoteConfiguration;
 import org.citrusframework.spi.ResourcePathTypeResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.util.*;
 
 /**
  * @author Christoph Deppisch

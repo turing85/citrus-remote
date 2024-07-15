@@ -34,7 +34,7 @@ public abstract class RunJob implements Callable<List<RemoteResult>> {
      * Default constructor using run configuration.
      * @param runConfiguration
      */
-    public RunJob(TestRunConfiguration runConfiguration) {
+    protected RunJob(TestRunConfiguration runConfiguration) {
         this.runConfiguration = runConfiguration;
     }
 
