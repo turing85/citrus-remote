@@ -48,7 +48,7 @@ import java.util.Optional;
 public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRemoteMojo {
 
     @Parameter
-    protected AssemblyConfiguration assemblyConfiguration;
+    protected AssemblyConfiguration assembly;
 
     @Parameter
     protected TestJarConfiguration testJar;
@@ -92,8 +92,8 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
     @Override
     public void doExecute() throws MojoExecutionException, MojoFailureException {
         initializeAssembly();
-        createDirs(assemblyConfiguration);
-        createAssemblyArchive(assemblyConfiguration);
+        createDirs(assembly);
+        createAssemblyArchive(assembly);
     }
 
     protected void createDirs(AssemblyConfiguration assemblyConfig) {
@@ -106,22 +106,22 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
 
     private void initializeAssembly() {
         if (!hasAssemblyConfiguration()) {
-            assemblyConfiguration = Optional.ofNullable(assemblyConfiguration).orElse(new AssemblyConfiguration());
+            assembly = Optional.ofNullable(assembly).orElse(new AssemblyConfiguration());
             AssemblyDescriptorConfiguration descriptorConfiguration = new AssemblyDescriptorConfiguration();
             descriptorConfiguration.setRef(getDefaultDescriptorRef());
-            assemblyConfiguration.setDescriptor(descriptorConfiguration);
+            assembly.setDescriptor(descriptorConfiguration);
         }
 
-        assemblyConfiguration.setOutputDirectory(getOutputDirectory());
-        assemblyConfiguration.setWorkingDirectory(workingDirectory);
-        assemblyConfiguration.setTemporaryRootDirectory(temporaryRootDirectory);
+        assembly.setOutputDirectory(getOutputDirectory());
+        assembly.setWorkingDirectory(workingDirectory);
+        assembly.setTemporaryRootDirectory(temporaryRootDirectory);
 
-        if (assemblyConfiguration.getArchive() == null) {
-            assemblyConfiguration.setArchive(new MavenArchiveConfiguration());
+        if (assembly.getArchive() == null) {
+            assembly.setArchive(new MavenArchiveConfiguration());
         }
 
-        if (assemblyConfiguration.getArchive().getManifest().getMainClass() == null){
-            assemblyConfiguration.getArchive().getManifest().setMainClass(mainClass);
+        if (assembly.getArchive().getManifest().getMainClass() == null){
+            assembly.getArchive().getManifest().setMainClass(mainClass);
         }
     }
 
@@ -132,10 +132,10 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
     protected abstract String getDefaultDescriptorRef();
 
     protected boolean hasAssemblyConfiguration() {
-        return assemblyConfiguration != null && assemblyConfiguration.getDescriptor() != null &&
-                (assemblyConfiguration.getDescriptor().getInline() != null ||
-                        assemblyConfiguration.getDescriptor().getFile() != null ||
-                        assemblyConfiguration.getDescriptor().getRef() != null);
+        return assembly != null && assembly.getDescriptor() != null &&
+                (assembly.getDescriptor().getInline() != null ||
+                        assembly.getDescriptor().getFile() != null ||
+                        assembly.getDescriptor().getRef() != null);
     }
 
     protected void createAssemblyArchive(AssemblyConfiguration assemblyConfig) throws MojoExecutionException {
@@ -178,10 +178,10 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
     /**
      * Sets the assembly.
      *
-     * @param assemblyConfiguration
+     * @param assembly
      */
-    public void setAssemblyConfiguration(AssemblyConfiguration assemblyConfiguration) {
-        this.assemblyConfiguration = assemblyConfiguration;
+    public void setAssembly(AssemblyConfiguration assembly) {
+        this.assembly = assembly;
     }
 
     /**
@@ -189,12 +189,12 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
      *
      * @return
      */
-    public AssemblyConfiguration getAssemblyConfiguration() {
+    public AssemblyConfiguration getAssembly() {
         if (!hasAssemblyConfiguration()) {
             initializeAssembly();
         }
 
-        return assemblyConfiguration;
+        return assembly;
     }
 
     /**

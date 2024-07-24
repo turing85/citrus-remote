@@ -46,7 +46,7 @@ public class TestJarMojo extends AbstractCitrusRemoteAssemblyMojo {
             return;
         }
 
-        if (hasTestJar() || getAssemblyConfiguration().isTestJarProvided()) {
+        if (hasTestJar() || getAssembly().isTestJarProvided()) {
             getLog().info(String.format("Skip test-jar creation as it is already attached to the project (classifier='%s')", getTestJar().getClassifier()));
         } else {
             createTestJarArchive();
