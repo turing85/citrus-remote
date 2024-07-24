@@ -32,7 +32,7 @@ public class AssemblyConfiguration implements Serializable {
     private AssemblyDescriptorConfiguration descriptor;
 
     @Parameter
-    private MavenArchiveConfiguration archive;
+    private transient MavenArchiveConfiguration archive;
 
     @Parameter(property = "citrus.remote.test.jar.provided", defaultValue = "false")
     private boolean testJarProvided = false;

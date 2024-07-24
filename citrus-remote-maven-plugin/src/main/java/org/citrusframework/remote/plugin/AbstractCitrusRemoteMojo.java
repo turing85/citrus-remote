@@ -16,16 +16,20 @@
 
 package org.citrusframework.remote.plugin;
 
-import org.citrusframework.remote.plugin.config.ReportConfiguration;
-import org.citrusframework.remote.plugin.config.ServerConfiguration;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.util.Timeout;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.plugin.*;
+import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.citrusframework.remote.plugin.config.ReportConfiguration;
+import org.citrusframework.remote.plugin.config.ServerConfiguration;
 
 import java.io.File;
 
@@ -74,16 +78,23 @@ public abstract class AbstractCitrusRemoteMojo extends AbstractMojo {
     /**
      * Constructor using default client.
      */
-    public AbstractCitrusRemoteMojo() {
+    protected AbstractCitrusRemoteMojo() {
         Timeout timoutMillis = Timeout.ofMilliseconds(timeout);
+
+        ConnectionConfig connectionConfig = ConnectionConfig.custom()
+                .setConnectTimeout(timoutMillis)
+                .build();
+
+        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+        connectionManager.setDefaultConnectionConfig(connectionConfig);
+
         httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(
-                        RequestConfig.copy(RequestConfig.DEFAULT)
-                        .setConnectionRequestTimeout(timoutMillis)
-                        .setConnectTimeout(timoutMillis)
-                        .setResponseTimeout(timoutMillis)
-                        .build()
-                )
+                        RequestConfig.custom()
+                                .setConnectionRequestTimeout(timoutMillis)
+                                .setResponseTimeout(timoutMillis)
+                                .build())
                 .build();
     }
 
@@ -91,7 +102,7 @@ public abstract class AbstractCitrusRemoteMojo extends AbstractMojo {
      * Constructor using given client.
      * @param httpClient
      */
-    public AbstractCitrusRemoteMojo(CloseableHttpClient httpClient) {
+    protected AbstractCitrusRemoteMojo(CloseableHttpClient httpClient) {
         this.httpClient = httpClient;
     }
 

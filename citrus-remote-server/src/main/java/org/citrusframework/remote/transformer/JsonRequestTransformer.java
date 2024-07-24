@@ -16,8 +16,8 @@
 
 package org.citrusframework.remote.transformer;
 
-import org.citrusframework.exceptions.CitrusRuntimeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.citrusframework.exceptions.CitrusRuntimeException;
 
 import java.io.IOException;
 

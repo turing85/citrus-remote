@@ -16,7 +16,6 @@
 
 package org.citrusframework.remote.plugin.assembly;
 
-import org.citrusframework.remote.plugin.config.AssemblyConfiguration;
 import org.apache.maven.archiver.MavenArchiveConfiguration;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
@@ -24,21 +23,27 @@ import org.apache.maven.plugins.assembly.AssemblerConfigurationSource;
 import org.apache.maven.plugins.assembly.utils.InterpolationConstants;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.filtering.MavenReaderFilter;
-import org.apache.maven.shared.utils.cli.CommandLineUtils;
-import org.codehaus.plexus.interpolation.fixed.*;
+import org.citrusframework.remote.plugin.config.AssemblyConfiguration;
+import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
+import org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource;
+import org.codehaus.plexus.interpolation.fixed.PropertiesBasedValueSource;
 
 import javax.annotation.Nonnull;
 import java.io.File;
-import java.util.*;
+import java.util.List;
+import java.util.Properties;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 /**
  * @since 2.7.4
  */
 public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfigurationSource {
 
-    private final MavenProject project;
-    private final MavenSession session;
-    private final MavenReaderFilter readerFilter;
+    private final MavenProject mavenProject;
+    private final MavenSession mavenSession;
+    private final MavenReaderFilter mavenReaderFilter;
     private final List<MavenProject> reactorProjects;
     private final AssemblyConfiguration assemblyConfig;
 
@@ -49,14 +54,14 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
     private FixedStringSearchInterpolator mainProjectInterpolator;
 
     public CitrusRemoteAssemblerConfigurationSource(AssemblyConfiguration assemblyConfig,
-                                                    MavenProject project,
-                                                    MavenSession session,
-                                                    MavenReaderFilter readerFilter,
+                                                    MavenProject mavenProject,
+                                                    MavenSession mavenSession,
+                                                    MavenReaderFilter mavenReaderFilter,
                                                     List<MavenProject> reactorProjects) {
         this.assemblyConfig = assemblyConfig;
-        this.project = project;
-        this.session = session;
-        this.readerFilter = readerFilter;
+        this.mavenProject = mavenProject;
+        this.mavenSession = mavenSession;
+        this.mavenReaderFilter = mavenReaderFilter;
         this.reactorProjects = reactorProjects;
     }
 
@@ -69,6 +74,7 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
             return new String[] { new File(descriptor).getAbsolutePath() };
           }
         }
+
         return new String[0];
     }
 
@@ -80,7 +86,8 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
                 return new String[]{ descriptorRef };
             }
         }
-        return null;
+
+        return new String[0];
     }
 
     // ============================================================================================
@@ -107,7 +114,7 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
 
     @Override
     public ArtifactRepository getLocalRepository() {
-        return session.getLocalRepository();
+        return mavenSession.getLocalRepository();
     }
 
     @Override
@@ -117,12 +124,12 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
 
     @Override
     public List<ArtifactRepository> getRemoteRepositories() {
-        return project.getRemoteArtifactRepositories();
+        return mavenProject.getRemoteArtifactRepositories();
     }
 
     @Override
     public MavenSession getMavenSession() {
-        return session;
+        return mavenSession;
     }
 
     @Override
@@ -132,7 +139,7 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
 
     @Override
     public String getEncoding() {
-        return project.getProperties().getProperty("project.build.sourceEncoding");
+        return mavenProject.getProperties().getProperty("project.build.sourceEncoding");
     }
 
     @Override
@@ -142,7 +149,7 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
 
     @Override
     public List<String> getDelimiters() {
-        return null;
+        return emptyList();
     }
 
 
@@ -183,12 +190,12 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
 
     @Override
     public MavenProject getProject() {
-        return project;
+        return mavenProject;
     }
 
     @Override
     public File getBasedir() {
-        return project.getBasedir();
+        return mavenProject.getBasedir();
     }
 
     @Override
@@ -203,7 +210,7 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
 
     @Override
     public List<String> getFilters() {
-        return Collections.emptyList();
+        return emptyList();
     }
 
     @Override
@@ -248,7 +255,7 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
 
     @Override
     public MavenReaderFilter getMavenReaderFilter() {
-        return readerFilter;
+        return mavenReaderFilter;
     }
 
     @Override
@@ -321,8 +328,10 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
     }
 
     private FixedStringSearchInterpolator createEnvInterpolator() {
-        PrefixedPropertiesValueSource envProps = new PrefixedPropertiesValueSource(Collections.singletonList("env."),
-                                                                                   CommandLineUtils.getSystemEnvVars(false), true );
-        return FixedStringSearchInterpolator.create( envProps );
+        PrefixedPropertiesValueSource envProps = new PrefixedPropertiesValueSource(
+                singletonList("env."),
+                System.getProperties(),
+                true);
+        return FixedStringSearchInterpolator.create(envProps);
     }
 }

@@ -16,11 +16,11 @@
 
 package org.citrusframework.remote;
 
-import java.util.LinkedList;
-
 import org.citrusframework.exceptions.CitrusRuntimeException;
 import org.citrusframework.main.CitrusAppOptions;
 import org.citrusframework.util.StringUtils;
+
+import java.util.LinkedList;
 
 /**
  * @author Christoph Deppisch

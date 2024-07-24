@@ -16,16 +16,17 @@
 
 package org.citrusframework.remote;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import org.citrusframework.remote.controller.RunController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Spark;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static java.lang.Thread.currentThread;
 import static spark.Spark.port;
 
 /**
@@ -76,6 +77,7 @@ public class CitrusRemoteServer {
                     new CompletableFuture<Void>().get(server.configuration.getTimeToLive(), TimeUnit.MILLISECONDS);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     server.stop();
+                    currentThread().interrupt();
                 }
             });
         }
@@ -135,6 +137,7 @@ public class CitrusRemoteServer {
             return completed.get();
         } catch (InterruptedException | ExecutionException e) {
             logger.warn("Failed to wait for server completion", e);
+            currentThread().interrupt();
         }
 
         return false;
