@@ -20,6 +20,7 @@ import org.apache.maven.archiver.MavenArchiveConfiguration;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugins.assembly.AssemblerConfigurationSource;
+import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.plugins.assembly.utils.InterpolationConstants;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.filtering.MavenReaderFilter;
@@ -90,6 +91,11 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
         return new String[0];
     }
 
+    @Override
+    public List<Assembly> getInlineDescriptors() {
+        return emptyList();
+    }
+
     // ============================================================================================
 
     @Override
@@ -113,18 +119,8 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
     }
 
     @Override
-    public ArtifactRepository getLocalRepository() {
-        return mavenSession.getLocalRepository();
-    }
-
-    @Override
     public List<MavenProject> getReactorProjects() {
         return reactorProjects;
-    }
-
-    @Override
-    public List<ArtifactRepository> getRemoteRepositories() {
-        return mavenProject.getRemoteArtifactRepositories();
     }
 
     @Override
@@ -189,6 +185,36 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
     }
 
     @Override
+    public Integer getOverrideUid() {
+        return 0;
+    }
+
+    @Override
+    public String getOverrideUserName() {
+        return "";
+    }
+
+    @Override
+    public Integer getOverrideGid() {
+        return 0;
+    }
+
+    @Override
+    public String getOverrideGroupName() {
+        return mavenProject.getGroupId();
+    }
+
+    @Override
+    public boolean isRecompressZippedFiles() {
+        return false;
+    }
+
+    @Override
+    public String getMergeManifestMode() {
+        return "merge";
+    }
+
+    @Override
     public MavenProject getProject() {
         return mavenProject;
     }
@@ -211,6 +237,11 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
     @Override
     public List<String> getFilters() {
         return emptyList();
+    }
+
+    @Override
+    public Properties getAdditionalProperties() {
+        return null;
     }
 
     @Override
@@ -264,11 +295,6 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
     }
 
     @Override
-    public boolean isUseJvmChmod() {
-        return false;
-    }
-
-    @Override
     public boolean isIgnorePermissions() {
         return false;
     }
@@ -298,13 +324,13 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
         final Properties settingsProperties = new Properties();
         final MavenSession session = getMavenSession();
 
-        if (getLocalRepository() != null) {
-            settingsProperties.setProperty("localRepository", getLocalRepository().getBasedir());
-            settingsProperties.setProperty("settings.localRepository", getLocalRepository().getBasedir());
+        if (mavenSession.getLocalRepository() != null) {
+            settingsProperties.setProperty("localRepository", mavenSession.getLocalRepository().getBasedir());
+            settingsProperties.setProperty("settings.localRepository", mavenSession.getLocalRepository().getBasedir());
         }
         else if (session != null && session.getSettings() != null) {
             settingsProperties.setProperty("localRepository", session.getSettings().getLocalRepository() );
-            settingsProperties.setProperty("settings.localRepository", getLocalRepository().getBasedir() );
+            settingsProperties.setProperty("settings.localRepository", mavenSession.getLocalRepository().getBasedir() );
         }
         return FixedStringSearchInterpolator.create(new PropertiesBasedValueSource(settingsProperties));
     }
