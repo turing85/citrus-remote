@@ -178,7 +178,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
             StringEntity body = new StringEntity(new ObjectMapper().writeValueAsString(runConfiguration), ContentType.APPLICATION_JSON);
             requestBuilder.setEntity(body);
 
-            try (var response = getHttpClient().execute(requestBuilder.build(), classicHttpResponse -> classicHttpResponse)) {
+            try (var response = getHttpClient().executeOpen(null, requestBuilder.build(), null)) {
                 if (HttpStatus.SC_OK != response.getCode()) {
                     throw new MojoExecutionException("Failed to run tests on remote server: " + EntityUtils.toString(response.getEntity()));
                 }
@@ -212,7 +212,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
                         .addHeader(new BasicHeader(HttpHeaders.ACCEPT, ContentType.APPLICATION_JSON.getMimeType()))
                         .addParameter("timeout", String.valueOf(run.getPollingInterval()))
                         .build();
-                response = getHttpClient().execute(httpRequest, classicHttpResponse -> classicHttpResponse);
+                response = getHttpClient().executeOpen(null, httpRequest, null);
 
                 if (HttpStatus.SC_PARTIAL_CONTENT == response.getCode()) {
                     getLog().info("Waiting for remote tests to finish ...");
@@ -277,7 +277,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
                 .build();
 
         String[] reportFiles = {};
-        try (var response = getHttpClient().execute(httpRequest, classicHttpResponse -> classicHttpResponse)){
+        try (var response = getHttpClient().executeOpen(null, httpRequest, null)){
             if (HttpStatus.SC_OK != response.getCode()) {
                 getLog().warn("Failed to get test reports from remote server");
             }
@@ -322,7 +322,7 @@ public class RunTestMojo extends AbstractCitrusRemoteMojo {
                 .addHeader(new BasicHeader(HttpHeaders.ACCEPT, contentType))
                 .build();
 
-        try (var fileResponse = getHttpClient().execute(httpRequest, classicHttpResponse -> classicHttpResponse)) {
+        try (var fileResponse = getHttpClient().executeOpen(null, httpRequest, null)) {
             if (HttpStatus.SC_OK != fileResponse.getCode()) {
                 getLog().warn("Failed to get report file: " + reportFile.getName());
                 return;
