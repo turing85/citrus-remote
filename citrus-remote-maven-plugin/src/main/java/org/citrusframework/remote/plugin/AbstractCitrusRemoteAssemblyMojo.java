@@ -38,6 +38,8 @@ import org.citrusframework.remote.plugin.config.AssemblyDescriptorConfiguration;
 import org.citrusframework.remote.plugin.config.TestJarConfiguration;
 
 import java.io.File;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -105,7 +107,7 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
     }
 
     private void initializeAssembly() {
-        if (!hasAssemblyConfiguration()) {
+        if (hasNoAssemblyConfiguration()) {
             assembly = Optional.ofNullable(assembly).orElse(new AssemblyConfiguration());
             AssemblyDescriptorConfiguration descriptorConfiguration = new AssemblyDescriptorConfiguration();
             descriptorConfiguration.setRef(getDefaultDescriptorRef());
@@ -127,15 +129,14 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
 
     /**
      * Subclasses provide default descriptor reference.
-     * @return
      */
     protected abstract String getDefaultDescriptorRef();
 
-    protected boolean hasAssemblyConfiguration() {
-        return assembly != null && assembly.getDescriptor() != null &&
-                (assembly.getDescriptor().getInline() != null ||
-                        assembly.getDescriptor().getFile() != null ||
-                        assembly.getDescriptor().getRef() != null);
+    protected boolean hasNoAssemblyConfiguration() {
+        return assembly == null || assembly.getDescriptor() == null ||
+                (assembly.getDescriptor().getInline() == null &&
+                        assembly.getDescriptor().getFile() == null &&
+                        assembly.getDescriptor().getRef() == null);
     }
 
     protected void createAssemblyArchive(AssemblyConfiguration assemblyConfig) throws MojoExecutionException {
@@ -144,7 +145,7 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
 
         try {
             for (String format : assembly.getFormats()) {
-                assemblyArchiver.createArchive(assembly, finalName + "-" + assembly.getId(), format, source, false, "merge");
+                assemblyArchiver.createArchive(assembly, finalName + "-" + assembly.getId(), format, source, FileTime.from(Instant.now()));
             }
         } catch (ArchiveCreationException | AssemblyFormattingException e) {
             throw new MojoExecutionException("Failed to create assembly for test jar", e);
@@ -190,7 +191,7 @@ public abstract class AbstractCitrusRemoteAssemblyMojo extends AbstractCitrusRem
      * @return
      */
     public AssemblyConfiguration getAssembly() {
-        if (!hasAssemblyConfiguration()) {
+        if (hasNoAssemblyConfiguration()) {
             initializeAssembly();
         }
 
