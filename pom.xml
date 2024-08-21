@@ -104,6 +104,7 @@
   <modules>
     <module>citrus-remote-server</module>
     <module>citrus-remote-maven-plugin</module>
+    <module>sample</module>
   </modules>
 
   <dependencyManagement>
