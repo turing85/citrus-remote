@@ -17,7 +17,6 @@
 package org.citrusframework.remote.plugin.assembly;
 
 import org.apache.maven.archiver.MavenArchiveConfiguration;
-import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugins.assembly.AssemblerConfigurationSource;
 import org.apache.maven.plugins.assembly.model.Assembly;
@@ -29,7 +28,7 @@ import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
 import org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource;
 import org.codehaus.plexus.interpolation.fixed.PropertiesBasedValueSource;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 import java.io.File;
 import java.util.List;
 import java.util.Properties;
@@ -69,11 +68,11 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
     @Override
     public String[] getDescriptors() {
         if (assemblyConfig != null) {
-          String descriptor = assemblyConfig.getDescriptor().getFile();
+            String descriptor = assemblyConfig.getDescriptor().getFile();
 
-          if (descriptor != null) {
-            return new String[] { new File(descriptor).getAbsolutePath() };
-          }
+            if (descriptor != null) {
+                return new String[] { new File(descriptor).getAbsolutePath() };
+            }
         }
 
         return new String[0];
@@ -307,12 +306,12 @@ public class CitrusRemoteAssemblerConfigurationSource implements AssemblerConfig
         if (mainProject != null) {
             // 5
             return FixedStringSearchInterpolator.create(
-                new org.codehaus.plexus.interpolation.fixed.PrefixedObjectValueSource(
-                    InterpolationConstants.PROJECT_PREFIXES, mainProject, true ),
+                    new org.codehaus.plexus.interpolation.fixed.PrefixedObjectValueSource(
+                            InterpolationConstants.PROJECT_PREFIXES, mainProject, true ),
 
-                // 6
-                new org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource(
-                    InterpolationConstants.PROJECT_PROPERTIES_PREFIXES, mainProject.getProperties(), true ) );
+                    // 6
+                    new org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource(
+                            InterpolationConstants.PROJECT_PROPERTIES_PREFIXES, mainProject.getProperties(), true ) );
         }
         else {
             return FixedStringSearchInterpolator.empty();
