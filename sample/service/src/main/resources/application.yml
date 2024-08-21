@@ -1,7 +1,0 @@
-quarkus:
-  live-reload:
-    password: changeMe
-  rest-client:
-    external:
-      url: ${QUARKUS_REST_CLIENT__EXTERNAL__URL:http://localhost:8081}
-      scope: jakarta.inject.Singleton
