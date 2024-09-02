@@ -2,8 +2,8 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.consol.citrus</groupId>
-  <version>3.5.0-SNAPSHOT</version>
+  <groupId>org.citrusframework</groupId>
+  <version>4.4.0-SNAPSHOT</version>
   <artifactId>citrus-remote</artifactId>
   <packaging>pom</packaging>
   <name>Citrus :: Tools :: Remote</name>
@@ -16,7 +16,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>17</java.version>
 
-    <maven.version>3.8.4</maven.version>
+    <maven.version>3.9.8</maven.version>
     <maven.compiler.version>3.11.0</maven.compiler.version>
     <maven.compiler.release>${java.version}</maven.compiler.release>
     <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -24,38 +24,38 @@
 
     <maven.compat.version>3.0</maven.compat.version>
     <maven.archiver.version>3.2.0</maven.archiver.version>
-    <maven.antrun.plugin.version>3.0.0</maven.antrun.plugin.version>
-    <maven.assembly.plugin.version>3.1.1</maven.assembly.plugin.version>
+    <maven.antrun.plugin.version>3.1.0</maven.antrun.plugin.version>
+    <maven.assembly.plugin.version>3.7.1</maven.assembly.plugin.version>
     <maven.changes.plugin.version>2.12.1</maven.changes.plugin.version>
-    <maven.clean.plugin.version>3.0.0</maven.clean.plugin.version>
-    <maven.dependency.plugin.version>3.0.2</maven.dependency.plugin.version>
-    <maven.deploy.plugin.version>3.1.0</maven.deploy.plugin.version>
+    <maven.clean.plugin.version>3.3.1</maven.clean.plugin.version>
+    <maven.dependency.plugin.version>3.6.0</maven.dependency.plugin.version>
+    <maven.deploy.plugin.version>3.1.1</maven.deploy.plugin.version>
     <maven.failsafe.plugin.version>2.22.2</maven.failsafe.plugin.version>
     <maven.gpg.plugin.version>1.6</maven.gpg.plugin.version>
-    <maven.helper.plugin.version>3.0.0</maven.helper.plugin.version>
-    <maven.install.plugin.version>2.5.2</maven.install.plugin.version>
-    <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
-    <maven.javadoc.plugin.version>3.3.1</maven.javadoc.plugin.version>
+    <maven.helper.plugin.version>3.4.0</maven.helper.plugin.version>
+    <maven.install.plugin.version>3.1.1</maven.install.plugin.version>
+    <maven.jar.plugin.version>3.3.0</maven.jar.plugin.version>
+    <maven.javadoc.plugin.version>3.5.0</maven.javadoc.plugin.version>
     <maven.nexus-staging.plugin.version>1.6.13</maven.nexus-staging.plugin.version>
-    <maven.plugin.annotations.version>3.7.1</maven.plugin.annotations.version>
-    <maven.plugin.plugin.version>3.6.2</maven.plugin.plugin.version>
-    <maven.release.plugin.version>2.5.3</maven.release.plugin.version>
-    <maven.resource.plugin.version>3.0.2</maven.resource.plugin.version>
-    <maven.scm.plugin.version>1.11.1</maven.scm.plugin.version>
+    <maven.plugin.annotations.version>3.13.1</maven.plugin.annotations.version>
+    <maven.plugin.plugin.version>3.9.0</maven.plugin.plugin.version>
+    <maven.release.plugin.version>3.0.1</maven.release.plugin.version>
+    <maven.resources.plugin.version>3.0.2</maven.resources.plugin.version>
+    <maven.scm.plugin.version>1.11.2</maven.scm.plugin.version>
     <maven.source.plugin.version>3.0.1</maven.source.plugin.version>
     <maven.surefire.plugin.version>2.22.2</maven.surefire.plugin.version>
-    <maven.war.plugin.version>3.1.0</maven.war.plugin.version>
+    <maven.war.plugin.version>3.4.0</maven.war.plugin.version>
     <maven.wagon.ssh.external.version>2.7</maven.wagon.ssh.external.version>
-    <apache.rat.plugin.version>0.13</apache.rat.plugin.version>
+    <apache.rat.plugin.version>0.15</apache.rat.plugin.version>
 
-    <citrus.version>3.4.0</citrus.version>
+    <citrus.version>4.3.1</citrus.version>
     <commons.logging.api.version>1.1</commons.logging.api.version>
-    <commons.logging.version>1.2</commons.logging.version>
-    <httpclient.version>4.5.14</httpclient.version>
-    <jackson.version>2.14.2</jackson.version>
+    <commons.logging.version>1.3.3</commons.logging.version>
+    <httpclient.version>5.3.1</httpclient.version>
+    <jackson.version>2.17.2</jackson.version>
+    <log4j2.version>2.22.1</log4j2.version>
+    <slf4j.version>2.0.11</slf4j.version>
     <jakarta.servlet-api.version>4.0.4</jakarta.servlet-api.version>
-    <log4j2.version>2.20.0</log4j2.version>
-    <slf4j.version>2.0.6</slf4j.version>
     <sparkjava.core.version>2.9.4</sparkjava.core.version>
 
     <!-- Documentation -->
@@ -110,19 +110,19 @@
     <dependencies>
       <!-- Citrus -->
       <dependency>
-        <groupId>com.consol.citrus</groupId>
+        <groupId>org.citrusframework</groupId>
         <artifactId>citrus-base</artifactId>
         <version>${citrus.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.consol.citrus</groupId>
+        <groupId>org.citrusframework</groupId>
         <artifactId>citrus-main</artifactId>
         <version>${citrus.version}</version>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
+        <groupId>org.apache.httpcomponents.client5</groupId>
+        <artifactId>httpclient5</artifactId>
         <version>${httpclient.version}</version>
       </dependency>
       <dependency>
@@ -205,12 +205,14 @@
         <version>${maven.compat.version}</version>
         <scope>provided</scope>
       </dependency>
+      <!-- See: https://issues.apache.org/jira/browse/MPLUGIN-385
       <dependency>
         <groupId>org.apache.maven</groupId>
         <artifactId>maven-archiver</artifactId>
         <version>${maven.archiver.version}</version>
         <scope>provided</scope>
       </dependency>
+      -->
       <dependency>
         <groupId>org.apache.maven</groupId>
         <artifactId>maven-settings</artifactId>
@@ -295,7 +297,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>${maven.resource.plugin.version}</version>
+          <version>${maven.resources.plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
