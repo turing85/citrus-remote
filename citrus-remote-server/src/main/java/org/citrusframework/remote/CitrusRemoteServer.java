@@ -16,10 +16,10 @@
 
 package org.citrusframework.remote;
 
+import io.vertx.core.Vertx;
 import org.citrusframework.remote.controller.RunController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import spark.Spark;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static java.lang.Thread.currentThread;
-import static spark.Spark.port;
 
 /**
  * @author Christoph Deppisch
@@ -35,7 +34,7 @@ import static spark.Spark.port;
 public class CitrusRemoteServer {
 
     /** Logger */
-    private static Logger logger = LoggerFactory.getLogger(CitrusRemoteServer.class);
+    private static final Logger logger = LoggerFactory.getLogger(CitrusRemoteServer.class);
 
     /** Endpoint configuration */
     private final CitrusRemoteConfiguration configuration;
@@ -100,8 +99,7 @@ public class CitrusRemoteServer {
      */
     public void start() {
         application = new CitrusRemoteApplication(configuration);
-        port(configuration.getPort());
-        application.init();
+        Vertx.vertx().deployVerticle(application);
 
         if (!configuration.isSkipTests()) {
             new RunController(configuration).run();
@@ -116,9 +114,8 @@ public class CitrusRemoteServer {
      * Stops the server instance.
      */
     public void stop() {
-        application.destroy();
+        application.stop();
         complete();
-        Spark.stop();
     }
 
     /**

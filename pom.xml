@@ -55,8 +55,7 @@
     <jackson.version>2.17.2</jackson.version>
     <log4j2.version>2.22.1</log4j2.version>
     <slf4j.version>2.0.11</slf4j.version>
-    <jakarta.servlet-api.version>4.0.4</jakarta.servlet-api.version>
-    <sparkjava.core.version>2.9.4</sparkjava.core.version>
+    <vertx.version>4.5.9</vertx.version>
 
     <!-- Documentation -->
     <javadoc.options>-Xdoclint:none</javadoc.options>
@@ -126,10 +125,14 @@
         <artifactId>httpclient5</artifactId>
         <version>${httpclient.version}</version>
       </dependency>
+
+      <!-- Vert.x -->
       <dependency>
-        <groupId>com.sparkjava</groupId>
-        <artifactId>spark-core</artifactId>
-        <version>${sparkjava.core.version}</version>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-stack-depchain</artifactId>
+        <version>${vertx.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <!-- JSON jackson binding -->
@@ -147,12 +150,6 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
         <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>jakarta.servlet</groupId>
-        <artifactId>jakarta.servlet-api</artifactId>
-        <version>${jakarta.servlet-api.version}</version>
       </dependency>
 
       <!-- Logging -->

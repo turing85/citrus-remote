@@ -16,11 +16,20 @@
 
 package org.citrusframework.remote;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import org.citrusframework.Citrus;
 import org.citrusframework.CitrusInstanceManager;
 import org.citrusframework.CitrusInstanceStrategy;
 import org.citrusframework.TestClass;
-import org.citrusframework.exceptions.CitrusRuntimeException;
 import org.citrusframework.main.CitrusAppConfiguration;
 import org.citrusframework.main.TestRunConfiguration;
 import org.citrusframework.remote.controller.RunController;
@@ -31,11 +40,8 @@ import org.citrusframework.remote.transformer.JsonRequestTransformer;
 import org.citrusframework.remote.transformer.JsonResponseTransformer;
 import org.citrusframework.report.JUnitReporter;
 import org.citrusframework.report.LoggingReporter;
-import org.citrusframework.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import spark.Filter;
-import spark.servlet.SparkApplication;
 
 import java.io.File;
 import java.net.URLDecoder;
@@ -45,18 +51,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-
-import static spark.Spark.*;
 
 /**
  * Remote application creates routes for this web application.
  *
  * @author Christoph Deppisch
- * @since 2.7.4
+ * @since 2..4
  */
-public class CitrusRemoteApplication implements SparkApplication {
+public class CitrusRemoteApplication extends AbstractVerticle {
 
     /** Logger */
     private static final Logger logger = LoggerFactory.getLogger(CitrusRemoteApplication.class);
@@ -72,7 +76,6 @@ public class CitrusRemoteApplication implements SparkApplication {
     private final CitrusRemoteConfiguration configuration;
 
     /** Single thread job scheduler */
-    private final ExecutorService jobs = Executors.newSingleThreadExecutor();
     private Future<List<RemoteResult>> remoteResultFuture;
 
     /** Latest test reports */
@@ -98,154 +101,206 @@ public class CitrusRemoteApplication implements SparkApplication {
     }
 
     @Override
-    public void init() {
+    public void start() {
         CitrusInstanceManager.mode(CitrusInstanceStrategy.SINGLETON);
-        CitrusInstanceManager.addInstanceProcessor(citrus -> citrus.addTestReporter(remoteTestResultReporter));
+        CitrusInstanceManager.addInstanceProcessor(citrus ->
+                citrus.addTestReporter(remoteTestResultReporter));
 
-        before((Filter) (request, response) -> logger.info("{} {}{}", request.requestMethod(), request.url(), Optional.ofNullable(request.queryString()).map(query -> "?" + query).orElse("")));
-
-        get("/health", (req, res) -> {
-            res.type(APPLICATION_JSON);
-            return "{ \"status\": \"UP\" }";
+        Router router = Router.router(getVertx());
+        router.route().handler(BodyHandler.create());
+        router.route().handler(ctx -> {
+            logger.info(
+                    "{} {}",
+                    ctx.request().method(),
+                    ctx.request().uri());
+            ctx.next();
         });
+        addHealthEndpoint(router);
+        addFilesEndpoint(router);
+        addResultsEndpoints(router);
+        addRunEndpoints(router);
+        addConfigEndpoints(router);
 
-        get("/files/:name", (req, res) -> {
-            res.type(APPLICATION_OCTET_STREAM);
-            String fileName = req.params(":name");
-            Path file = Path.of(fileName);
+        getVertx().createHttpServer()
+                .requestHandler(router)
+                .listen(configuration.getPort())
+                .onSuccess(unused ->
+                        logger.info("Server started on port {}", configuration.getPort()));
+    }
 
-            if (Files.isRegularFile(file)) {
-                res.header(
-                    "Content-Disposition",
-                    "attachment; filename=\"" + file.getFileName() + "\"");
-                return Files.readAllBytes(file);
+    private static void addHealthEndpoint(Router router) {
+        router.get("/health")
+                .handler(wrapThrowingHandler(ctx ->
+                        ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
+                                .end("{ \"status\": \"UP\" }")));
+    }
+
+    private static void addFilesEndpoint(Router router) {
+        router.get("/files/:name")
+                .handler(wrapThrowingHandler(ctx -> {
+                    HttpServerResponse response = ctx.response();
+                    response.putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_OCTET_STREAM);
+                    String fileName = ctx.pathParam("name");
+                    Path file = Path.of(fileName);
+                    if (Files.isRegularFile(file)) {
+                        response.putHeader(
+                                HttpHeaders.CONTENT_DISPOSITION,
+                                "attachment; filename=\"" + file.getFileName() + "\"")
+                                .sendFile(fileName);
+                    }
+                }));
+    }
+
+    private void addResultsEndpoints(Router router) {
+        router.get("/results")
+                .produces(APPLICATION_JSON)
+                .handler(wrapThrowingHandler(ctx -> {
+                    long timeout = Optional.ofNullable(ctx.request().params().get("timeout"))
+                            .map(Long::valueOf)
+                            .orElse(10000L);
+
+                    HttpServerResponse response = ctx.response();
+                    if (remoteResultFuture != null) {
+                        response.putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON);
+                        remoteResultFuture.timeout(timeout, TimeUnit.MILLISECONDS)
+                            .onSuccess(results ->
+                                    response.end(responseTransformer.render(results)))
+                            .onFailure(throwable -> response
+                                    .setStatusCode(HttpResponseStatus.PARTIAL_CONTENT.code())
+                                    .end(responseTransformer.render(Collections.emptyList())));
+                    } else {
+                        final List<RemoteResult> results = new ArrayList<>();
+                        remoteTestResultReporter.getLatestResults().doWithResults(result ->
+                                results.add(RemoteResult.fromTestResult(result)));
+                        response.end(responseTransformer.render(results));
+                    }
+                }));
+        router.get("/results")
+                .handler(ctx -> ctx.response().end(
+                        responseTransformer.render(remoteTestResultReporter.getTestReport())));
+        router.get("/results/files")
+                .handler(wrapThrowingHandler(ctx -> {
+                    File junitReportsFolder = new File(getJUnitReportsFolder());
+
+                    List<String> result = Collections.emptyList();
+                    if (junitReportsFolder.exists()) {
+                        result = Optional.ofNullable(junitReportsFolder.list())
+                                .stream()
+                                .flatMap(Stream::of)
+                                .toList();
+                    }
+                    ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
+                            .end(responseTransformer.render(result));
+                }));
+        router.get("/results/file/:name")
+                .handler(wrapThrowingHandler(ctx -> {
+                    HttpServerResponse response = ctx.response();
+                    response.putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_XML);
+                    String fileName = ctx.pathParam("name");
+                    String reportsFolder = getJUnitReportsFolder();
+                    Path testResultFile = Path.of(reportsFolder).resolve(fileName);
+
+                    if (Files.exists(testResultFile)) {
+                        response.sendFile(testResultFile.toString());
+                    } else {
+                        response.setStatusCode(HttpResponseStatus.NOT_FOUND.code())
+                                .end("Failed to find test result file: %s".formatted(fileName));
+                    }
+                }));
+        router.get("/results/suite")
+                .handler(wrapThrowingHandler(ctx -> {
+                    HttpServerResponse response = ctx.response();
+                    response.putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON);
+                    JUnitReporter jUnitReporter = new JUnitReporter();
+                    Path suiteResultFile = Path.of(jUnitReporter.getReportDirectory())
+                            .resolve(String.format(
+                                    jUnitReporter.getReportFileNamePattern(),
+                                    jUnitReporter.getSuiteName()));
+                    if (Files.exists(suiteResultFile)) {
+                        response.sendFile(suiteResultFile.toString());
+                    } else {
+                        response.setStatusCode(HttpResponseStatus.NOT_FOUND.code())
+                                .end("Failed to find suite result file: %s".formatted(suiteResultFile));
+                    }
+                }));
+    }
+
+    private void addRunEndpoints(Router router) {
+        router.get("/run")
+                .handler(wrapThrowingHandler(ctx -> {
+                    TestRunConfiguration runConfiguration = new TestRunConfiguration();
+                    MultiMap queryParams = ctx.request().params();
+                    if (queryParams.contains("engine")) {
+                        String engine = queryParams.get("engine");
+                        runConfiguration.setEngine(URLDecoder.decode(engine, ENCODING));
+                    } else {
+                        runConfiguration.setEngine(configuration.getEngine());
+                    }
+
+                    if (queryParams.contains("includes")) {
+                        String value = queryParams.get("includes");
+                        runConfiguration.setIncludes(URLDecoder.decode(value, ENCODING)
+                                .split(","));
+                    }
+
+                    if (queryParams.contains("package")) {
+                        String value = queryParams.get("package");
+                        runConfiguration.setPackages(Collections.singletonList(
+                                URLDecoder.decode(value, ENCODING)));
+                    }
+
+                    if (queryParams.contains("class")) {
+                        String value = queryParams.get("class");
+                        runConfiguration.setTestSources(Collections.singletonList(
+                                TestClass.fromString(URLDecoder.decode(value, ENCODING))));
+                    }
+
+                    ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
+                            .end(responseTransformer.render(runTests(runConfiguration)));
+                }));
+        router.put("/run")
+                .handler(wrapThrowingHandler(ctx -> {
+                    remoteResultFuture = getVertx().executeBlocking(
+                            new RunJob(requestTransformer.read(ctx.body().asString(), TestRunConfiguration.class)) {
+                                @Override
+                                public List<RemoteResult> run(TestRunConfiguration runConfiguration) {
+                                    return runTests(runConfiguration);
+                                }
+                            });
+                    ctx.response().end("");
+                }));
+        router.post("/run")
+                .handler(wrapThrowingHandler(ctx -> {
+                    TestRunConfiguration runConfiguration = requestTransformer.read(
+                            ctx.body().asString(),
+                            TestRunConfiguration.class);
+                    ctx.response().end(responseTransformer.render(runTests(runConfiguration)));
+                }));
+    }
+
+    private void addConfigEndpoints(Router router) {
+        router.get("/configuration")
+                .handler(wrapThrowingHandler(ctx ->
+                        ctx.response()
+                                .putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
+                                .end(responseTransformer.render(configuration))));
+        router.put("/configuration")
+                .handler(wrapThrowingHandler(ctx ->
+                        configuration.apply(requestTransformer.read(
+                                ctx.body().asString(),
+                                CitrusAppConfiguration.class))));
+    }
+
+
+    private static Handler<RoutingContext> wrapThrowingHandler(ThrowingHandler<RoutingContext> handler) {
+        return ctx -> {
+            try {
+                handler.handle(ctx);
+            } catch (Exception e) {
+                ctx.response().setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code())
+                        .end(e.getMessage());
             }
-            return null;
-        });
-
-        path("/results", () -> {
-            get("", APPLICATION_JSON, (req, res) -> {
-                res.type(APPLICATION_JSON);
-
-                long timeout = Optional.ofNullable(req.queryParams("timeout"))
-                                        .map(Long::valueOf)
-                                        .orElse(10000L);
-
-                if (remoteResultFuture != null) {
-                    try {
-                        return remoteResultFuture.get(timeout, TimeUnit.MILLISECONDS);
-                    } catch (TimeoutException e) {
-                        res.status(206); // partial content
-                    }
-                }
-
-                List<RemoteResult> results = new ArrayList<>();
-                remoteTestResultReporter.getLatestResults().doWithResults(result -> results.add(RemoteResult.fromTestResult(result)));
-                return results;
-            }, responseTransformer);
-
-            get("", (req, res) -> remoteTestResultReporter.getTestReport());
-
-            get("/files", (req, res) -> {
-                res.type(APPLICATION_JSON);
-                File junitReportsFolder = new File(getJUnitReportsFolder());
-
-                if (junitReportsFolder.exists()) {
-                    return Optional.ofNullable(junitReportsFolder.list())
-                        .stream().
-                        flatMap(Stream::of)
-                        .toList();
-                }
-
-                return Collections.emptyList();
-            }, responseTransformer);
-
-            get("/file/:name", (req, res) -> {
-                res.type(APPLICATION_XML);
-                File junitReportsFolder = new File(getJUnitReportsFolder());
-                File testResultFile = new File(junitReportsFolder, req.params(":name"));
-
-                if (junitReportsFolder.exists() && testResultFile.exists()) {
-                    return FileUtils.readToString(testResultFile);
-                }
-
-                throw halt(404, "Failed to find test result file: " + req.params(":name"));
-            });
-
-            get("/suite", (req, res) -> {
-                res.type(APPLICATION_XML);
-                JUnitReporter jUnitReporter = new JUnitReporter();
-                File citrusReportsFolder = new File(jUnitReporter.getReportDirectory());
-                File suiteResultFile = new File(citrusReportsFolder, String.format(jUnitReporter.getReportFileNamePattern(), jUnitReporter.getSuiteName()));
-
-                if (citrusReportsFolder.exists() && suiteResultFile.exists()) {
-                    return FileUtils.readToString(suiteResultFile);
-                }
-
-                throw halt(404, "Failed to find suite result file: " + suiteResultFile.getPath());
-            });
-        });
-
-        path("/run", () -> {
-            get("", (req, res) -> {
-                TestRunConfiguration runConfiguration = new TestRunConfiguration();
-
-                if (req.queryParams().contains("engine")) {
-                    runConfiguration.setEngine(URLDecoder.decode(req.queryParams("engine"), ENCODING));
-                } else {
-                    runConfiguration.setEngine(configuration.getEngine());
-                }
-
-                if (req.queryParams().contains("includes")) {
-                    runConfiguration.setIncludes(URLDecoder.decode(req.queryParams("includes"), ENCODING).split(","));
-                }
-
-                if (req.queryParams().contains("package")) {
-                    runConfiguration.setPackages(Collections.singletonList(URLDecoder.decode(req.queryParams("package"), ENCODING)));
-                }
-
-                if (req.queryParams().contains("class")) {
-                    runConfiguration.setTestSources(Collections.singletonList(TestClass.fromString(URLDecoder.decode(req.queryParams("class"), ENCODING))));
-                }
-
-                res.type(APPLICATION_JSON);
-
-                return runTests(runConfiguration);
-            }, responseTransformer);
-
-            put("", (req, res) -> {
-                remoteResultFuture = jobs.submit(new RunJob(requestTransformer.read(req.body(), TestRunConfiguration.class)) {
-                    @Override
-                    public List<RemoteResult> run(TestRunConfiguration runConfiguration) {
-                        return runTests(runConfiguration);
-                    }
-                });
-
-                return "";
-            });
-
-            post("", (req, res) -> {
-                TestRunConfiguration runConfiguration = requestTransformer.read(req.body(), TestRunConfiguration.class);
-                return runTests(runConfiguration);
-            }, responseTransformer);
-        });
-
-        path("/configuration", () -> {
-            get("", (req, res) -> {
-                res.type(APPLICATION_JSON);
-                return configuration;
-            }, responseTransformer);
-
-            put("", (req, res) -> {
-                configuration.apply(requestTransformer.read(req.body(), CitrusAppConfiguration.class));
-                return "";
-            });
-        });
-
-        exception(CitrusRuntimeException.class, (exception, request, response) -> {
-            response.status(500);
-            response.body(exception.getMessage());
-        });
+        };
     }
 
     /**
@@ -297,12 +352,13 @@ public class CitrusRemoteApplication implements SparkApplication {
     }
 
     @Override
-    public void destroy() {
+    public void stop() {
         Optional<Citrus> citrus = CitrusInstanceManager.get();
         if (citrus.isPresent()) {
             logger.info("Closing Citrus and its application context");
             citrus.get().close();
         }
+        getVertx().close();
     }
 
     // TODO: Check if this is equivalent to
@@ -314,5 +370,9 @@ public class CitrusRemoteApplication implements SparkApplication {
         } catch (ClassNotFoundException e) {
             return false;
         }
+    }
+
+    interface ThrowingHandler<T> {
+        void handle(T t) throws Exception;
     }
 }
