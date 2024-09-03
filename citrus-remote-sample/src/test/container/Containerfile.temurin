@@ -1,0 +1,41 @@
+ARG TEMURIN_IMAGE="docker.io/eclipse-temurin:21.0.4_7-jre-alpine@sha256:b16f1192681ea43bd6f5c435a1bf30e59fcbee560ee2c497f42118003f42d804"
+
+FROM ${TEMURIN_IMAGE} as runner
+ARG JAR=target/*-citrus-tests.jar
+ARG APP_DIR=/deployment
+ARG UID=1001
+
+USER root
+
+WORKDIR ${APP_DIR}
+RUN chmod -R 777 ${APP_DIR}
+COPY --chmod=755 ${JAR} ${APP_DIR}/app.jar
+
+USER ${UID}:${UID}
+
+ENTRYPOINT [ \
+  "java", \
+  "-jar", \
+  "app.jar" \
+]
+
+CMD [ \
+  "--skipTests", \
+  "true", \
+  "--duration", \
+  "9223372036854775807" \
+]
+
+EXPOSE 4567/tcp
+
+HEALTHCHECK \
+  --interval=30s \
+  --retries=3 \
+  --timeout=5s \
+  CMD \
+    wget \
+      --quiet \
+      --spider \
+      --tries=1 \
+      localhost:4567/health \
+      || exit 1
