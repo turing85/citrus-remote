@@ -1,4 +1,4 @@
-package org.citrusframework.remote.sample.http;
+package org.citrusframework.remote.sample.test.http;
 
 import org.citrusframework.TestCaseRunner;
 import org.citrusframework.annotations.CitrusResource;
@@ -12,7 +12,7 @@ import org.testng.annotations.Test;
 import static org.citrusframework.container.Async.Builder.async;
 import static org.citrusframework.http.actions.HttpActionBuilder.http;
 
-public class TextTestIT extends TestNGCitrusSpringSupport {
+public class GetTextIT extends TestNGCitrusSpringSupport {
     @Test
     @CitrusTest
     public void test(@Optional @CitrusResource TestCaseRunner runner) {
