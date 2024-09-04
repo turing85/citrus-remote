@@ -20,13 +20,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.citrusframework.exceptions.CitrusRuntimeException;
-import spark.ResponseTransformer;
 
 /**
  * @author Christoph Deppisch
  * @since 2.7.4
  */
-public class JsonResponseTransformer implements ResponseTransformer {
+public class JsonResponseTransformer {
 
     private final ObjectMapper mapper;
 
@@ -38,7 +37,6 @@ public class JsonResponseTransformer implements ResponseTransformer {
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
-    @Override
     public String render(Object model) {
         try {
             return mapper.writeValueAsString(model);

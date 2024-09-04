@@ -16,6 +16,8 @@
     <properties>
         <citrus.version>4.3.1</citrus.version>
         <spring.version>6.1.12</spring.version>
+
+        <docker>false</docker>
     </properties>
 
     <build>
@@ -96,6 +98,9 @@
                             <goal>verify</goal>
                         </goals>
                         <phase>verify</phase>
+                        <configuration>
+                            <skip>${docker}</skip>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -105,27 +110,29 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>org.citrusframework</groupId>
+                <artifactId>citrus-bom</artifactId>
+                <version>${citrus.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-bom</artifactId>
                 <version>${log4j2.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
-        <!-- We need to override the default from the parent -->
-        <!-- For normal projects, this is not necessary. -->
-        <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <version>6.1.0</version>
-        </dependency>
-
         <!-- Citrus remote -->
         <dependency>
             <groupId>org.citrusframework</groupId>
             <artifactId>citrus-remote-server</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- Spring-Boot -->
@@ -133,52 +140,57 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
             <version>${spring.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- Logging -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-iostreams</artifactId>
-            <version>${log4j2.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- Citrus -->
         <dependency>
             <groupId>org.citrusframework</groupId>
             <artifactId>citrus-base</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.citrusframework</groupId>
             <artifactId>citrus-spring</artifactId>
             <version>${citrus.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.citrusframework</groupId>
             <artifactId>citrus-endpoint-catalog</artifactId>
-            <version>${citrus.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.citrusframework</groupId>
             <artifactId>citrus-testng</artifactId>
-            <version>${citrus.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.citrusframework</groupId>
             <artifactId>citrus-http</artifactId>
-            <version>${citrus.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.citrusframework</groupId>
             <artifactId>citrus-validation-text</artifactId>
-            <version>${citrus.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -193,7 +205,9 @@
                 <docker.remove.skip>false</docker.remove.skip>
                 <docker.start.skip>false</docker.start.skip>
                 <docker.stop.skip>false</docker.stop.skip>
+                <docker>true</docker>
             </properties>
+
             <build>
                 <plugins>
                     <plugin>
