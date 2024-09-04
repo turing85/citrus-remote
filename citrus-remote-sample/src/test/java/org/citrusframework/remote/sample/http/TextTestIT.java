@@ -11,6 +11,7 @@ import org.testng.annotations.Test;
 
 import static org.citrusframework.container.Async.Builder.async;
 import static org.citrusframework.http.actions.HttpActionBuilder.http;
+import static org.junit.Assert.assertTrue;
 
 public class TextTestIT extends TestNGCitrusSpringSupport {
     @Test
@@ -44,5 +45,6 @@ public class TextTestIT extends TestNGCitrusSpringSupport {
                 .message()
                 .contentType(MediaType.TEXT_PLAIN_VALUE)
                 .body("${body}"));
+        assertTrue(1 == 1);
     }
 }
