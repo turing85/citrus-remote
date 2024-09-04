@@ -1,0 +1,62 @@
+name: Cleanup after merge
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  # `actions:write` permission is required to delete caches
+  #   See also: https://docs.github.com/en/rest/actions/cache?apiVersion=2022-11-28#delete-a-github-actions-cache-for-a-repository-using-a-cache-id
+  actions: write
+
+jobs:
+  delete:
+    name: Cleanup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete github caches belonging to branch {{ github.ref }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install actions/gh-actions-cache
+          
+          repo="${{ github.repository }}"
+          branch="${{ github.ref }}"
+          
+          printf "Fetching list of cache keys for branch %s..." "${branch}"
+          cache_keys_for_pr=( $( \
+            gh actions-cache \
+              --repo "${repo}" \
+              --branch "${branch}" \
+              list \
+              | cut -f 1) \
+          )
+          echo " Done."
+          
+          # Setting this to not fail the workflow while deleting cache keys. 
+          set +e
+          if [[ -n "${cache_keys_for_pr[*]}" ]]
+          then
+            echo "Found the following cache keys:"
+            for cache_key in "${cache_keys_for_pr[@]}"
+            do
+              echo "  ${cache_key}"
+            done
+            echo "Starting deletion of caches"
+            for cache_key in "${cache_keys_for_pr[@]}"
+            do
+              printf "  Deleting cache with key %s..." "${cache_key}"
+              gh actions-cache delete \
+                --repo "${repo}" \
+                --branch "${branch}" \
+                --confirm \
+                "${cache_key}" \
+                1> /dev/null
+              echo " Done."
+            done
+            echo "All caches deleted."
+          else
+            echo "No caches on branch ${branch} found. Nothing to delete."
+          fi

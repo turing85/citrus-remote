@@ -1,0 +1,12 @@
+name: Read environment
+
+description: |
+  Reads the file .github/workflows/.env and registers all entries in ${GITHUB_ENV}
+
+runs:
+  using: composite
+
+  steps:
+    - name: read-env
+      shell: bash
+      run: cat .github/workflows/.env >> ${GITHUB_ENV}
