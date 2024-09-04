@@ -43,6 +43,6 @@ public class GetTextIT extends TestNGCitrusSpringSupport {
                 .response(HttpStatus.OK)
                 .message()
                 .contentType(MediaType.TEXT_PLAIN_VALUE)
-                .body("${body}"));
+                .body("broken"));
     }
 }
