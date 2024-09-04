@@ -15,7 +15,7 @@
 # limitations under the License.
 # ---------------------------------------------------------------------------
 
-name: build
+name: Build
 
 on:
   pull_request:
@@ -36,28 +36,81 @@ on:
       - 'KEYS'
       - 'LICENSE'
       - 'NOTICE'
+env:
+  JAVA_DISTRIBUTION: will-be-read-from-env-file
+  JAVA_VERSION: will-be-read-from-env-file
+  JAR_ARTIFACT_NAME: will-be-read-from-env-file
+  TEST_REPORTS_ARTIFACT_NAME: will-be-read-from-env-file
+  PR_NUMBER_ARTIFACT_NAME: will-be-read-from-env-file
+
+permissions:
+  actions: write
+  checks: write
+  pull-requests: write
+
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
     steps:
-      - name: Set up JDK 17
-        uses: AdoptOpenJDK/install-jdk@v1
-        with:
-          version: '17'
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Cache Maven packages
-        uses: actions/cache@v2
+        uses: actions/checkout@v4
+
+      - name: Setup environment variables
+        uses: ./.github/actions/setup-env
+
+      - name: Set up JDK ${{ env.JAVA_DISTRIBUTION}} ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          cache: 'maven'
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+
       - name: Info
         run: |
           java -version
-          mvn -version
+          ./mvnw -version
+
       - name: Build
         run: |
-          mvn --no-transfer-progress install
+          ./mvnw \
+            --batch-mode \
+            --color always \
+            verify
+
+      - name: Upload JARs
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          if-no-files-found: error
+          name: ${{ env.JAR_ARTIFACT_NAME }}
+          path: |
+            **/*.jar
+          retention-days: 2
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          if-no-files-found: error
+          name: ${{ env.TEST_REPORTS_ARTIFACT_NAME }}
+          path: |
+            **/target/surefire-reports/TEST*.xml
+            **/target/citrus-reports/junitreports/TEST*.xml
+          retention-days: 2
+
+      - name: Get PR number
+        id: get-pr-number
+        if: ${{ always() }}
+        run: |
+          echo "${{ github.event.number }}" > "pr-number.txt"
+
+      - name: Upload PR number
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: ${{ env.PR_NUMBER_ARTIFACT_NAME }}
+          path: pr-number.txt

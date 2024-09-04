@@ -14,10 +14,22 @@
     <name>Citrus :: Tools :: Remote :: Sample</name>
 
     <properties>
+        <!-- Plugin versions -->
+        <docker-maven-plugin.version>0.45.0</docker-maven-plugin.version>
+
+        <!-- Dependency versions -->
         <citrus.version>4.3.1</citrus.version>
         <spring.version>6.1.12</spring.version>
 
-        <docker>false</docker>
+        <!-- Project setup -->
+        <citrus.remote.phase>none</citrus.remote.phase>
+
+        <docker.build.phase>none</docker.build.phase>
+        <docker.remove.phase>none</docker.remove.phase>
+        <docker.start.phase>none</docker.start.phase>
+        <docker.stop.phase>none</docker.stop.phase>
+
+        <failsafe.phase>verify</failsafe.phase>
     </properties>
 
     <build>
@@ -75,6 +87,27 @@
                             <mainClass>org.citrusframework.remote.sample.entrypoint.CustomEntrypoint</mainClass>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>trigger-citrus-remote</id>
+                        <goals>
+                            <goal>test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <phase>${citrus.remote.phase}</phase>
+                        <configuration>
+                            <server>
+                                <url>http://localhost:4567</url>
+                            </server>
+                            <run>
+                                <engine>testng</engine>
+                                <async>true</async>
+                                <pollingInterval>15000</pollingInterval>
+                            </run>
+                            <report>
+                                <directory>citrus-remote</directory>
+                            </report>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -88,6 +121,97 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>${docker-maven-plugin.version}</version>
+                <configuration>
+                    <images>
+                        <image>
+                            <name>localhost/%a</name>
+                            <build>
+                                <contextDir>${project.basedir}</contextDir>
+                                <dockerFile>${project.basedir}/src/test/container/Containerfile.temurin</dockerFile>
+                            </build>
+                            <copy>
+                                <entries>
+                                    <entry>
+                                        <containerPath>/deployment/target/logs/citrus.log</containerPath>
+                                        <hostDirectory>${project.build.directory}/container-logs</hostDirectory>
+                                    </entry>
+                                </entries>
+                            </copy>
+                            <run>
+                                <autoRemove>true</autoRemove>
+                                <ports>
+                                    <port>4567:4567</port>
+                                </ports>
+                                <wait>
+                                    <http>
+                                        <url>http://localhost:4567/health</url>
+                                        <method>GET</method>
+                                        <status>200</status>
+                                    </http>
+                                    <time>2000</time>
+                                </wait>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>build-image</id>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <phase>${docker.build.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>stop-old-container</id>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                        <phase>${docker.start.phase}</phase>
+                        <configuration>
+                            <stopNamePattern>localhost/citrus-remote-sample</stopNamePattern>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>start-container</id>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                        <phase>${docker.start.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>docker-copy-logs</id>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <phase>${citrus.remote.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>stop-container</id>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                        <phase>${docker.stop.phase}</phase>
+                        <configuration>
+                            <allContainers>true</allContainers>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>remove-image</id>
+                        <goals>
+                            <goal>remove</goal>
+                        </goals>
+                        <phase>${docker.remove.phase}</phase>
+                        <configuration>
+                            <removeMode>all</removeMode>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <executions>
@@ -97,10 +221,7 @@
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
-                        <phase>verify</phase>
-                        <configuration>
-                            <skip>${docker}</skip>
-                        </configuration>
+                        <phase>${failsafe.phase}</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -198,182 +319,45 @@
         <profile>
             <id>docker</id>
             <properties>
-                <docker-maven-plugin.version>0.45.0</docker-maven-plugin.version>
+                <citrus.remote.phase>integration-test</citrus.remote.phase>
 
-                <citrus.remote.skip>false</citrus.remote.skip>
-                <docker.build.skip>false</docker.build.skip>
-                <docker.remove.skip>false</docker.remove.skip>
-                <docker.start.skip>false</docker.start.skip>
-                <docker.stop.skip>false</docker.stop.skip>
-                <docker>true</docker>
+                <docker.build.phase>pre-integration-test</docker.build.phase>
+                <docker.remove.phase>post-integration-test</docker.remove.phase>
+                <docker.start.phase>pre-integration-test</docker.start.phase>
+                <docker.stop.phase>post-integration-test</docker.stop.phase>
+
+                <failsafe.phase>none</failsafe.phase>
             </properties>
-
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>io.fabric8</groupId>
-                        <artifactId>docker-maven-plugin</artifactId>
-                        <version>${docker-maven-plugin.version}</version>
-                        <configuration>
-                            <images>
-                                <image>
-                                    <name>localhost/%a</name>
-                                    <build>
-                                        <contextDir>${project.basedir}</contextDir>
-                                        <dockerFile>${project.basedir}/src/test/container/Containerfile.temurin</dockerFile>
-                                    </build>
-                                    <copy>
-                                        <entries>
-                                            <entry>
-                                                <containerPath>/deployment/target/logs/citrus.log</containerPath>
-                                                <hostDirectory>${project.build.directory}/container-logs</hostDirectory>
-                                            </entry>
-                                        </entries>
-                                    </copy>
-                                    <run>
-                                        <autoRemove>true</autoRemove>
-                                        <ports>
-                                            <port>4567:4567</port>
-                                        </ports>
-                                        <wait>
-                                            <http>
-                                                <url>http://localhost:4567/health</url>
-                                                <method>GET</method>
-                                                <status>200</status>
-                                            </http>
-                                            <time>2000</time>
-                                        </wait>
-                                    </run>
-                                </image>
-                            </images>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>build-image</id>
-                                <goals>
-                                    <goal>build</goal>
-                                </goals>
-                                <phase>pre-integration-test</phase>
-                                <configuration>
-                                    <skip>${docker.build.skip}</skip>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>stop-old-container</id>
-                                <goals>
-                                    <goal>stop</goal>
-                                </goals>
-                                <phase>pre-integration-test</phase>
-                                <configuration>
-                                    <skip>${docker.start.skip}</skip>
-                                    <stopNamePattern>localhost/citrus-remote-sample</stopNamePattern>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>start-container</id>
-                                <goals>
-                                    <goal>start</goal>
-                                </goals>
-                                <phase>pre-integration-test</phase>
-                                <configuration>
-                                    <skip>${docker.start.skip}</skip>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>docker-copy-logs</id>
-                                <goals>
-                                    <goal>copy</goal>
-                                </goals>
-                                <phase>post-integration-test</phase>
-                                <configuration>
-                                    <skip>${citrus.remote.skip}</skip>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>stop-container</id>
-                                <goals>
-                                    <goal>stop</goal>
-                                </goals>
-                                <phase>post-integration-test</phase>
-                                <configuration>
-                                    <allContainers>true</allContainers>
-                                    <skip>${docker.stop.skip}</skip>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>remove-image</id>
-                                <goals>
-                                    <goal>remove</goal>
-                                </goals>
-                                <phase>post-integration-test</phase>
-                                <configuration>
-                                    <skip>${docker.remove.skip}</skip>
-                                    <removeMode>all</removeMode>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.citrusframework</groupId>
-                        <artifactId>citrus-remote-maven-plugin</artifactId>
-                        <version>${project.version}</version>
-                        <executions>
-                            <execution>
-                                <id>trigger-citrus-remote</id>
-                                <goals>
-                                    <goal>test</goal>
-                                    <goal>verify</goal>
-                                </goals>
-                                <phase>integration-test</phase>
-                                <configuration>
-                                    <skip>${citrus.remote.skip}</skip>
-                                    <server>
-                                        <url>http://localhost:4567</url>
-                                    </server>
-                                    <run>
-                                        <engine>testng</engine>
-                                        <async>true</async>
-                                        <pollingInterval>15000</pollingInterval>
-                                    </run>
-                                    <report>
-                                        <directory>citrus-remote</directory>
-                                    </report>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
         </profile>
         <profile>
             <id>skip-citrus-remote</id>
             <properties>
-                <citrus.remote.skip>true</citrus.remote.skip>
+                <citrus.remote.phase>none</citrus.remote.phase>
             </properties>
         </profile>
         <profile>
             <id>skip-docker-build</id>
             <properties>
-                <docker.build.skip>true</docker.build.skip>
+                <docker.build.pahse>none</docker.build.pahse>
             </properties>
         </profile>
         <profile>
             <id>skip-docker-remove</id>
             <properties>
-                <docker.remove.skip>true</docker.remove.skip>
+                <docker.remove.phase>none</docker.remove.phase>
             </properties>
         </profile>
         <profile>
             <id>skip-docker-start</id>
             <properties>
-                <docker.start.skip>true</docker.start.skip>
+                <docker.start.phase>none</docker.start.phase>
             </properties>
         </profile>
         <profile>
             <id>skip-docker-stop</id>
             <properties>
-                <docker.remove.skip>true</docker.remove.skip>
-                <docker.stop.skip>true</docker.stop.skip>
+                <docker.remove.phase>none</docker.remove.phase>
+                <docker.stop.phase>none</docker.stop.phase>
             </properties>
         </profile>
     </profiles>
