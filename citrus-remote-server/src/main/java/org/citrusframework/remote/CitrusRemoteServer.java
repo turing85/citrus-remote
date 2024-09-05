@@ -17,14 +17,18 @@
 package org.citrusframework.remote;
 
 import io.vertx.core.Vertx;
+import io.vertx.ext.web.Router;
 import org.citrusframework.remote.controller.RunController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 import static java.lang.Thread.currentThread;
 
@@ -39,6 +43,9 @@ public class CitrusRemoteServer {
     /** Endpoint configuration */
     private final CitrusRemoteConfiguration configuration;
 
+    /** Router customizations */
+    private final List<Consumer<Router>> routerCustomizations;
+
     private CitrusRemoteApplication application;
 
     /** Completed future marking completed state */
@@ -51,16 +58,21 @@ public class CitrusRemoteServer {
         this(new CitrusRemoteConfiguration());
     }
 
+    public CitrusRemoteServer(CitrusRemoteConfiguration citrusRemoteConfiguration) {
+        this(citrusRemoteConfiguration, Collections.emptyList());
+    }
+
     /**
      * Default constructor using controller and configuration.
      * @param configuration
      */
-    public CitrusRemoteServer(CitrusRemoteConfiguration configuration) {
+    public CitrusRemoteServer(CitrusRemoteConfiguration configuration, List<Consumer<Router>> routerCustomizations) {
         this.configuration = configuration;
+        this.routerCustomizations = routerCustomizations;
     }
 
-    public CitrusRemoteServer(String[] args) {
-        this(new CitrusRemoteOptions().apply(new CitrusRemoteConfiguration(), args));
+    public CitrusRemoteServer(String[] args, List<Consumer<Router>> routerCustomizations) {
+        this(new CitrusRemoteOptions().apply(new CitrusRemoteConfiguration(), args), routerCustomizations);
     }
 
     /**
@@ -68,7 +80,16 @@ public class CitrusRemoteServer {
      * @param args
      */
     public static void main(String[] args) {
-        CitrusRemoteServer server = new CitrusRemoteServer(args);
+        entrypoint(args, Collections.emptyList());
+    }
+
+    /**
+     * Entrypoint method
+     * @param args
+     * @param routerCustomizations
+     */
+    public static void entrypoint(String[] args, List<Consumer<Router>> routerCustomizations) {
+        CitrusRemoteServer server = new CitrusRemoteServer(args, routerCustomizations);
 
         if (server.configuration.getTimeToLive() > 0) {
             CompletableFuture.runAsync(() -> {
@@ -98,7 +119,7 @@ public class CitrusRemoteServer {
      * Start server instance and listen for incoming requests.
      */
     public void start() {
-        application = new CitrusRemoteApplication(configuration);
+        application = new CitrusRemoteApplication(configuration, routerCustomizations);
         Vertx.vertx().deployVerticle(application);
 
         if (!configuration.isSkipTests()) {

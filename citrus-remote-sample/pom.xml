@@ -16,6 +16,7 @@
     <properties>
         <!-- Plugin versions -->
         <docker-maven-plugin.version>0.45.0</docker-maven-plugin.version>
+        <download-maven-plugin.version>1.9.0</download-maven-plugin.version>
 
         <!-- Dependency versions -->
         <citrus.version>4.3.1</citrus.version>
@@ -27,10 +28,11 @@
         <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
 
         <docker.build.phase>none</docker.build.phase>
-        <docker.copy.phase>none</docker.copy.phase>
         <docker.remove.phase>none</docker.remove.phase>
         <docker.start.phase>none</docker.start.phase>
         <docker.stop.phase>none</docker.stop.phase>
+
+        <download.wget.phase>none</download.wget.phase>
 
         <failsafe.phase>verify</failsafe.phase>
     </properties>
@@ -97,6 +99,27 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>com.googlecode.maven-download-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+                <version>${download-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>get-citrus-logs</id>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <phase>${download.wget.phase}</phase>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/container-logs</outputDirectory>
+                            <outputFileName>citrus.log</outputFileName>
+                            <overwrite>true</overwrite>
+                            <skipCache>true</skipCache>
+                            <url>http://localhost:4567/citrus-logs?reset=true</url>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <executions>
@@ -121,14 +144,6 @@
                                 <contextDir>${project.basedir}</contextDir>
                                 <dockerFile>${project.basedir}/src/test/container/Containerfile.temurin</dockerFile>
                             </build>
-                            <copy>
-                                <entries>
-                                    <entry>
-                                        <containerPath>/deployment/target/logs/citrus.log</containerPath>
-                                        <hostDirectory>${project.build.directory}/container-logs</hostDirectory>
-                                    </entry>
-                                </entries>
-                            </copy>
                             <run>
                                 <autoRemove>true</autoRemove>
                                 <ports>
@@ -170,13 +185,6 @@
                             <goal>start</goal>
                         </goals>
                         <phase>${docker.start.phase}</phase>
-                    </execution>
-                    <execution>
-                        <id>docker-copy-logs</id>
-                        <goals>
-                            <goal>copy</goal>
-                        </goals>
-                        <phase>${docker.copy.phase}</phase>
                     </execution>
                     <execution>
                         <id>stop-container</id>
@@ -312,10 +320,11 @@
                 <citrus.remote.verify.phase>verify</citrus.remote.verify.phase>
 
                 <docker.build.phase>pre-integration-test</docker.build.phase>
-                <docker.copy.phase>post-integration-test</docker.copy.phase>
                 <docker.remove.phase>post-integration-test</docker.remove.phase>
                 <docker.start.phase>pre-integration-test</docker.start.phase>
                 <docker.stop.phase>post-integration-test</docker.stop.phase>
+
+                <download.wget.phase>post-integration-test</download.wget.phase>
 
                 <failsafe.phase>none</failsafe.phase>
             </properties>
@@ -326,13 +335,13 @@
                 <citrus.remote.test.phase>none</citrus.remote.test.phase>
                 <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
 
-                <docker.copy.phase>none</docker.copy.phase>
+                <download.wget.phase>none</download.wget.phase>
             </properties>
         </profile>
         <profile>
             <id>skip-docker-build</id>
             <properties>
-                <docker.build.pahse>none</docker.build.pahse>
+                <docker.build.phase>none</docker.build.phase>
             </properties>
         </profile>
         <profile>
