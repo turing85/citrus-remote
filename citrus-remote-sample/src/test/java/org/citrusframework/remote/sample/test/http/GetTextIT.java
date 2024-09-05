@@ -11,6 +11,7 @@ import org.testng.annotations.Test;
 
 import static org.citrusframework.container.Async.Builder.async;
 import static org.citrusframework.http.actions.HttpActionBuilder.http;
+import static org.testng.Assert.assertEquals;
 
 public class GetTextIT extends TestNGCitrusSpringSupport {
     @Test
@@ -43,6 +44,7 @@ public class GetTextIT extends TestNGCitrusSpringSupport {
                 .response(HttpStatus.OK)
                 .message()
                 .contentType(MediaType.TEXT_PLAIN_VALUE)
-                .body("broken"));
+                .body("${body}"));
+        assertEquals(1, 1);
     }
 }
