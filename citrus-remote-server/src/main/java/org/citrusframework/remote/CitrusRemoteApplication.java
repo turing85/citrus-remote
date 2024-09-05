@@ -89,23 +89,6 @@ public class CitrusRemoteApplication extends AbstractVerticle {
     private final JsonResponseTransformer responseTransformer = new JsonResponseTransformer();
 
     /**
-     * Default constructor using default configuration.
-     */
-    @SuppressWarnings("unused")
-    public CitrusRemoteApplication() {
-        this(new CitrusRemoteConfiguration());
-    }
-
-    /**
-     * Constructor with given application configuration.
-     * @param configuration
-     */
-    public CitrusRemoteApplication(
-            CitrusRemoteConfiguration configuration) {
-        this(configuration, Collections.emptyList());
-    }
-
-    /**
      * Constructor with given application configuration and route customizations.
      * @param configuration
      * @param routerCustomizations

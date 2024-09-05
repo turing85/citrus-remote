@@ -52,17 +52,6 @@ public class CitrusRemoteServer {
     protected final CompletableFuture<Boolean> completed = new CompletableFuture<>();
 
     /**
-     * Default constructor initializing controller and configuration.
-     */
-    public CitrusRemoteServer() {
-        this(new CitrusRemoteConfiguration());
-    }
-
-    public CitrusRemoteServer(CitrusRemoteConfiguration citrusRemoteConfiguration) {
-        this(citrusRemoteConfiguration, Collections.emptyList());
-    }
-
-    /**
      * Default constructor using controller and configuration.
      * @param configuration
      */
