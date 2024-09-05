@@ -27,6 +27,7 @@
         <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
 
         <docker.build.phase>none</docker.build.phase>
+        <docker.copy.phase>none</docker.copy.phase>
         <docker.remove.phase>none</docker.remove.phase>
         <docker.start.phase>none</docker.start.phase>
         <docker.stop.phase>none</docker.stop.phase>
@@ -175,7 +176,7 @@
                         <goals>
                             <goal>copy</goal>
                         </goals>
-                        <phase>${citrus.remote.phase}</phase>
+                        <phase>${docker.copy.phase}</phase>
                     </execution>
                     <execution>
                         <id>stop-container</id>
@@ -311,6 +312,7 @@
                 <citrus.remote.verify.phase>verify</citrus.remote.verify.phase>
 
                 <docker.build.phase>pre-integration-test</docker.build.phase>
+                <docker.copy.phase>post-integration-test</docker.copy.phase>
                 <docker.remove.phase>post-integration-test</docker.remove.phase>
                 <docker.start.phase>pre-integration-test</docker.start.phase>
                 <docker.stop.phase>post-integration-test</docker.stop.phase>
@@ -323,6 +325,8 @@
             <properties>
                 <citrus.remote.test.phase>none</citrus.remote.test.phase>
                 <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
+
+                <docker.copy.phase>none</docker.copy.phase>
             </properties>
         </profile>
         <profile>
