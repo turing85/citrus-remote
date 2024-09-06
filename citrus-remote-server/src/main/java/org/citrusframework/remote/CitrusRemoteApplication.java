@@ -44,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,6 +52,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -80,10 +84,13 @@ public class CitrusRemoteApplication extends AbstractVerticle {
     private Future<List<RemoteResult>> remoteResultFuture;
 
     /** Latest test reports */
-    private final RemoteTestResultReporter remoteTestResultReporter = new RemoteTestResultReporter();
+    private final RemoteTestResultReporter remoteTestResultReporter =
+            new RemoteTestResultReporter();
 
     /** Router customizations */
     private final List<Consumer<Router>> routerCustomizations;
+
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     private final JsonRequestTransformer requestTransformer = new JsonRequestTransformer();
     private final JsonResponseTransformer responseTransformer = new JsonResponseTransformer();
@@ -224,7 +231,8 @@ public class CitrusRemoteApplication extends AbstractVerticle {
                         response.sendFile(suiteResultFile.toString());
                     } else {
                         response.setStatusCode(HttpResponseStatus.NOT_FOUND.code())
-                                .end("Failed to find suite result file: %s".formatted(suiteResultFile));
+                                .end("Failed to find suite result file: %s"
+                                        .formatted(suiteResultFile));
                     }
                 }));
     }
@@ -232,54 +240,81 @@ public class CitrusRemoteApplication extends AbstractVerticle {
     private void addRunEndpoints(Router router) {
         router.get("/run")
                 .handler(wrapThrowingHandler(ctx -> {
-                    TestRunConfiguration runConfiguration = new TestRunConfiguration();
-                    MultiMap queryParams = ctx.request().params();
-                    if (queryParams.contains("engine")) {
-                        String engine = queryParams.get("engine");
-                        runConfiguration.setEngine(URLDecoder.decode(engine, ENCODING));
-                    } else {
-                        runConfiguration.setEngine(configuration.getEngine());
-                    }
-
-                    if (queryParams.contains("includes")) {
-                        String value = queryParams.get("includes");
-                        runConfiguration.setIncludes(URLDecoder.decode(value, ENCODING)
-                                .split(","));
-                    }
-
-                    if (queryParams.contains("package")) {
-                        String value = queryParams.get("package");
-                        runConfiguration.setPackages(Collections.singletonList(
-                                URLDecoder.decode(value, ENCODING)));
-                    }
-
-                    if (queryParams.contains("class")) {
-                        String value = queryParams.get("class");
-                        runConfiguration.setTestSources(Collections.singletonList(
-                                TestClass.fromString(URLDecoder.decode(value, ENCODING))));
-                    }
-
-                    ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
-                            .end(responseTransformer.render(runTests(runConfiguration)));
+                    TestRunConfiguration runConfiguration = constructRunConfig(ctx);
+                    runTestsAsync(runConfiguration, ctx.response());
                 }));
         router.put("/run")
                 .handler(wrapThrowingHandler(ctx -> {
-                    remoteResultFuture = getVertx().executeBlocking(
-                            new RunJob(requestTransformer.read(ctx.body().asString(), TestRunConfiguration.class)) {
-                                @Override
-                                public List<RemoteResult> run(TestRunConfiguration runConfiguration) {
-                                    return runTests(runConfiguration);
-                                }
-                            });
+                    remoteResultFuture = Future.fromCompletionStage(CompletableFuture.supplyAsync(
+                            constructTestRun(ctx)::call,
+                            executorService));
                     ctx.response().end("");
                 }));
         router.post("/run")
                 .handler(wrapThrowingHandler(ctx -> {
+                    HttpServerResponse response = ctx.response();
                     TestRunConfiguration runConfiguration = requestTransformer.read(
                             ctx.body().asString(),
                             TestRunConfiguration.class);
-                    ctx.response().end(responseTransformer.render(runTests(runConfiguration)));
+                    runTestsAsync(runConfiguration, response);
                 }));
+    }
+
+    private TestRunConfiguration constructRunConfig(RoutingContext ctx)
+            throws UnsupportedEncodingException {
+        TestRunConfiguration runConfiguration = new TestRunConfiguration();
+        MultiMap queryParams = ctx.request().params();
+        if (queryParams.contains("engine")) {
+            String engine = queryParams.get("engine");
+            runConfiguration.setEngine(URLDecoder.decode(engine, ENCODING));
+        } else {
+            runConfiguration.setEngine(configuration.getEngine());
+        }
+
+        if (queryParams.contains("includes")) {
+            String value = queryParams.get("includes");
+            runConfiguration.setIncludes(URLDecoder.decode(value, ENCODING)
+                    .split(","));
+        }
+
+        if (queryParams.contains("package")) {
+            String value = queryParams.get("package");
+            runConfiguration.setPackages(Collections.singletonList(
+                    URLDecoder.decode(value, ENCODING)));
+        }
+
+        if (queryParams.contains("class")) {
+            String value = queryParams.get("class");
+            runConfiguration.setTestSources(Collections.singletonList(
+                    TestClass.fromString(URLDecoder.decode(value, ENCODING))));
+        }
+        return runConfiguration;
+    }
+
+    private void runTestsAsync(
+            TestRunConfiguration runConfiguration,
+            HttpServerResponse response) {
+        Future
+                .fromCompletionStage(CompletableFuture.supplyAsync(
+                        () -> runTests(runConfiguration),
+                        executorService))
+                .onSuccess(results ->
+                        response.end(responseTransformer.render(results)))
+                .onFailure(error -> response
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code())
+                        .end(error.getMessage()));
+    }
+
+    private RunJob constructTestRun(RoutingContext ctx) {
+        TestRunConfiguration config = requestTransformer.read(
+                ctx.body().asString(),
+                TestRunConfiguration.class);
+        return new RunJob(config) {
+            @Override
+            public List<RemoteResult> run(TestRunConfiguration runConfiguration) {
+                return runTests(runConfiguration);
+            }
+        };
     }
 
     private void addConfigEndpoints(Router router) {
