@@ -6,17 +6,27 @@ import org.citrusframework.annotations.CitrusTest;
 import org.citrusframework.testng.spring.TestNGCitrusSpringSupport;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Optional;
 import org.testng.annotations.Test;
 
+import static org.citrusframework.actions.SleepAction.Builder.sleep;
 import static org.citrusframework.container.Async.Builder.async;
 import static org.citrusframework.http.actions.HttpActionBuilder.http;
 
 public class GetTextIT extends TestNGCitrusSpringSupport {
-    @Test
+    @DataProvider
+    public Object[][] body() {
+        return new Object[][]{
+                {null, "foo"},
+                {null, "bar"},
+                {null, "citrus:randomString(10, MIXED, true)"}};
+    }
+
+    @Test(dataProvider = "body")
     @CitrusTest
-    public void test(@Optional @CitrusResource TestCaseRunner runner) {
-        runner.variable("body", "citrus:randomString(10, MIXED, true)");
+    public void test(@Optional @CitrusResource TestCaseRunner runner, String body) {
+        runner.variable("body", body);
         runner.given(async().actions(
                 http().server("httpServer")
                         .receive()
@@ -44,5 +54,7 @@ public class GetTextIT extends TestNGCitrusSpringSupport {
                 .message()
                 .contentType(MediaType.TEXT_PLAIN_VALUE)
                 .body("${body}"));
+
+        runner.$(sleep().seconds(2));
     }
 }

@@ -94,7 +94,7 @@
                             <run>
                                 <engine>testng</engine>
                                 <async>true</async>
-                                <pollingInterval>15000</pollingInterval>
+                                <pollingInterval>1000</pollingInterval>
                             </run>
                             <report>
                                 <directory>${citrus.remote.report.directory}</directory>

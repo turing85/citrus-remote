@@ -17,36 +17,52 @@
 package org.citrusframework.remote.job;
 
 import org.citrusframework.main.TestRunConfiguration;
+import org.citrusframework.remote.CitrusRemoteConfiguration;
+import org.citrusframework.remote.controller.RunController;
 import org.citrusframework.remote.model.RemoteResult;
+import org.citrusframework.remote.listener.RemoteTestListener;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 /**
  * @author Christoph Deppisch
  * @since 2.7.4
  */
-public abstract class RunJob implements Callable<List<RemoteResult>> {
-
-    private final TestRunConfiguration runConfiguration;
-
-    /**
-     * Default constructor using run configuration.
-     * @param runConfiguration
-     */
-    protected RunJob(TestRunConfiguration runConfiguration) {
-        this.runConfiguration = runConfiguration;
-    }
+public record RunJob (
+        CitrusRemoteConfiguration configuration,
+        TestRunConfiguration runConfiguration,
+        RemoteTestListener remoteTestListener)
+        implements Supplier<List<RemoteResult>> {
 
     @Override
-    public List<RemoteResult> call() {
-        return run(runConfiguration);
-    }
+    public List<RemoteResult> get() {
+        RunController runController = new RunController(configuration);
 
-    /**
-     * Subclasses must implement this method for executing the tests based on given configuration.
-     * @param runConfiguration
-     * @return
-     */
-    protected abstract List<RemoteResult> run(TestRunConfiguration runConfiguration);
+        runController.setEngine(runConfiguration.getEngine());
+        runController.setIncludes(runConfiguration.getIncludes());
+
+        if (!runConfiguration.getDefaultProperties().isEmpty()) {
+            runController.addDefaultProperties(runConfiguration.getDefaultProperties());
+        }
+
+        if (runConfiguration.getPackages().isEmpty() &&
+                runConfiguration.getTestSources().isEmpty()) {
+            runController.runAll();
+        }
+
+        if (!runConfiguration.getPackages().isEmpty()) {
+            runController.runPackages(runConfiguration.getPackages());
+        }
+
+        if (!runConfiguration.getTestSources().isEmpty()) {
+            runController.runClasses(runConfiguration.getTestSources());
+        }
+
+        List<RemoteResult> results = new ArrayList<>();
+        remoteTestListener.getResults()
+                .doWithResults(result -> results.add(RemoteResult.fromTestResult(result)));
+        return results;
+    }
 }

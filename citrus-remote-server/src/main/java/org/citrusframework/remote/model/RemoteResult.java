@@ -21,6 +21,7 @@ import org.citrusframework.exceptions.CitrusRuntimeException;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -34,6 +35,9 @@ public class RemoteResult {
 
     /** Fully qualified test class name */
     private String testClass;
+
+    /** Duration of the test run */
+    private Long durationMillis;
 
     /** Failure cause */
     private String cause;
@@ -57,6 +61,10 @@ public class RemoteResult {
         RemoteResult remoteResult = new RemoteResult();
         remoteResult.setTestName(testResult.getTestName());
         remoteResult.setTestClass(testResult.getClassName());
+        remoteResult.setDurationMillis(Optional.of(testResult)
+                .map(TestResult::getDuration)
+                .orElse(Duration.ZERO)
+                .toMillis());
         remoteResult.setSuccess(testResult.isSuccess());
         remoteResult.setFailed(testResult.isFailed());
         remoteResult.setSkipped(testResult.isSkipped());
@@ -80,17 +88,24 @@ public class RemoteResult {
      * @return
      */
     public static TestResult toTestResult(RemoteResult remoteResult) {
+        TestResult result;
         if (remoteResult.isSuccess()) {
-            return TestResult.success(remoteResult.getTestName(), remoteResult.getTestClass());
+            result = TestResult.success(remoteResult.getTestName(), remoteResult.getTestClass());
         } else if (remoteResult.isSkipped()) {
-            return TestResult.skipped(remoteResult.getTestName(), remoteResult.getTestClass());
+            result = TestResult.skipped(remoteResult.getTestName(), remoteResult.getTestClass());
         } else if (remoteResult.isFailed()) {
             // TODO: Check if this is fine, failure stack, failure type are never used in the new Citrus version
-            return TestResult.failed(remoteResult.getTestName(), remoteResult.getTestClass(), remoteResult.getErrorMessage())
-                             .withFailureType(remoteResult.getCause());
+            result = TestResult
+                    .failed(
+                            remoteResult.getTestName(),
+                            remoteResult.getTestClass(),
+                            remoteResult.getErrorMessage())
+                    .withFailureType(remoteResult.getCause());
         } else {
-            throw new CitrusRuntimeException("Unexpected test result state " + remoteResult.getTestName());
+            throw new CitrusRuntimeException(
+                    "Unexpected test result state " + remoteResult.getTestName());
         }
+        return result.withDuration(Duration.ofMillis(remoteResult.getDurationMillis()));
     }
 
     /**
@@ -127,6 +142,24 @@ public class RemoteResult {
      */
     public void setTestClass(String testClass) {
         this.testClass = testClass;
+    }
+
+    /**
+     * Gets the durationInMillis.
+     *
+     * @return
+     */
+    public long getDurationMillis() {
+        return durationMillis;
+    }
+
+    /**
+     * Sets the durationInMillis.
+     *
+     * @param durationMillis
+     */
+    public void setDurationMillis(long durationMillis) {
+        this.durationMillis = durationMillis;
     }
 
     /**
