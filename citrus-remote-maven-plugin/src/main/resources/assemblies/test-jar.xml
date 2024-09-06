@@ -30,4 +30,9 @@
       <scope>test</scope>
     </dependencySet>
   </dependencySets>
+  <containerDescriptorHandlers>
+    <containerDescriptorHandler>
+      <handlerName>metaInf-spring</handlerName>
+    </containerDescriptorHandler>
+  </containerDescriptorHandlers>
 </assembly>

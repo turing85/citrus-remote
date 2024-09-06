@@ -22,9 +22,12 @@
         <spring.version>6.1.12</spring.version>
 
         <!-- Project setup -->
-        <citrus.remote.phase>none</citrus.remote.phase>
+        <citrus.remote.report.directory>citrus-remote</citrus.remote.report.directory>
+        <citrus.remote.test.phase>none</citrus.remote.test.phase>
+        <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
 
         <docker.build.phase>none</docker.build.phase>
+        <docker.copy.phase>none</docker.copy.phase>
         <docker.remove.phase>none</docker.remove.phase>
         <docker.start.phase>none</docker.start.phase>
         <docker.stop.phase>none</docker.stop.phase>
@@ -56,34 +59,6 @@
                         </goals>
                         <phase>package</phase>
                         <configuration>
-                            <assembly>
-                                <descriptor>
-                                    <inline>
-                                        <id>citrus-tests</id>
-                                        <formats>
-                                            <format>jar</format>
-                                        </formats>
-                                        <includeBaseDirectory>false</includeBaseDirectory>
-                                        <dependencySets>
-                                            <dependencySet>
-                                                <outputDirectory>/</outputDirectory>
-                                                <useProjectArtifact>false</useProjectArtifact>
-                                                <useProjectAttachments>true</useProjectAttachments>
-                                                <unpack>true</unpack>
-                                                <scope>test</scope>
-                                            </dependencySet>
-                                        </dependencySets>
-                                        <!-- Workaround for -->
-                                        <!-- https://github.com/citrusframework/citrus-remote/issues/2 -->
-                                        <!-- if the issue is fixed, the whole descriptor-section can be removed. -->
-                                        <containerDescriptorHandlers>
-                                            <containerDescriptorHandler>
-                                                <handlerName>metaInf-spring</handlerName>
-                                            </containerDescriptorHandler>
-                                        </containerDescriptorHandlers>
-                                    </inline>
-                                </descriptor>
-                            </assembly>
                             <mainClass>org.citrusframework.remote.sample.entrypoint.CustomEntrypoint</mainClass>
                         </configuration>
                     </execution>
@@ -91,9 +66,8 @@
                         <id>trigger-citrus-remote</id>
                         <goals>
                             <goal>test</goal>
-                            <goal>verify</goal>
                         </goals>
-                        <phase>${citrus.remote.phase}</phase>
+                        <phase>${citrus.remote.test.phase}</phase>
                         <configuration>
                             <server>
                                 <url>http://localhost:4567</url>
@@ -104,7 +78,19 @@
                                 <pollingInterval>15000</pollingInterval>
                             </run>
                             <report>
-                                <directory>citrus-remote</directory>
+                                <directory>${citrus.remote.report.directory}</directory>
+                            </report>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>verify-citrus-remote-tests</id>
+                        <goals>
+                            <goal>verify</goal>
+                        </goals>
+                        <phase>${citrus.remote.verify.phase}</phase>
+                        <configuration>
+                            <report>
+                                <directory>${citrus.remote.report.directory}</directory>
                             </report>
                         </configuration>
                     </execution>
@@ -190,7 +176,7 @@
                         <goals>
                             <goal>copy</goal>
                         </goals>
-                        <phase>${citrus.remote.phase}</phase>
+                        <phase>${docker.copy.phase}</phase>
                     </execution>
                     <execution>
                         <id>stop-container</id>
@@ -322,9 +308,11 @@
         <profile>
             <id>docker</id>
             <properties>
-                <citrus.remote.phase>integration-test</citrus.remote.phase>
+                <citrus.remote.test.phase>integration-test</citrus.remote.test.phase>
+                <citrus.remote.verify.phase>verify</citrus.remote.verify.phase>
 
                 <docker.build.phase>pre-integration-test</docker.build.phase>
+                <docker.copy.phase>post-integration-test</docker.copy.phase>
                 <docker.remove.phase>post-integration-test</docker.remove.phase>
                 <docker.start.phase>pre-integration-test</docker.start.phase>
                 <docker.stop.phase>post-integration-test</docker.stop.phase>
@@ -335,7 +323,10 @@
         <profile>
             <id>skip-citrus-remote</id>
             <properties>
-                <citrus.remote.phase>none</citrus.remote.phase>
+                <citrus.remote.test.phase>none</citrus.remote.test.phase>
+                <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
+
+                <docker.copy.phase>none</docker.copy.phase>
             </properties>
         </profile>
         <profile>
