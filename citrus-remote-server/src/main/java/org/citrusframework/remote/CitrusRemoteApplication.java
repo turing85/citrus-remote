@@ -52,6 +52,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -81,23 +82,23 @@ public class CitrusRemoteApplication extends AbstractVerticle {
     /** Latest test reports */
     private final RemoteTestResultReporter remoteTestResultReporter = new RemoteTestResultReporter();
 
+    /** Router customizations */
+    private final List<Consumer<Router>> routerCustomizations;
+
     private final JsonRequestTransformer requestTransformer = new JsonRequestTransformer();
     private final JsonResponseTransformer responseTransformer = new JsonResponseTransformer();
 
     /**
-     * Default constructor using default configuration.
-     */
-    @SuppressWarnings("unused")
-    public CitrusRemoteApplication() {
-        this(new CitrusRemoteConfiguration());
-    }
-
-    /**
-     * Constructor with given application configuration.
+     * Constructor with given application configuration and route customizations.
      * @param configuration
+     * @param routerCustomizations
      */
-    public CitrusRemoteApplication(CitrusRemoteConfiguration configuration) {
+    public CitrusRemoteApplication(
+            CitrusRemoteConfiguration configuration,
+            List<Consumer<Router>> routerCustomizations) {
         this.configuration = configuration;
+        this.routerCustomizations = Optional.ofNullable(routerCustomizations)
+                .orElse(Collections.emptyList());
     }
 
     @Override
@@ -120,6 +121,7 @@ public class CitrusRemoteApplication extends AbstractVerticle {
         addResultsEndpoints(router);
         addRunEndpoints(router);
         addConfigEndpoints(router);
+        routerCustomizations.forEach(customization -> customization.accept(router));
 
         getVertx().createHttpServer()
                 .requestHandler(router)
@@ -139,14 +141,16 @@ public class CitrusRemoteApplication extends AbstractVerticle {
         router.get("/files/:name")
                 .handler(wrapThrowingHandler(ctx -> {
                     HttpServerResponse response = ctx.response();
-                    response.putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_OCTET_STREAM);
                     String fileName = ctx.pathParam("name");
                     Path file = Path.of(fileName);
                     if (Files.isRegularFile(file)) {
-                        response.putHeader(
-                                HttpHeaders.CONTENT_DISPOSITION,
-                                "attachment; filename=\"" + file.getFileName() + "\"")
+                        response.putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                                .putHeader(
+                                        HttpHeaders.CONTENT_DISPOSITION,
+                                        "attachment; filename=\"" + file.getFileName() + "\"")
                                 .sendFile(fileName);
+                    } else {
+                        response.setStatusCode(HttpResponseStatus.NOT_FOUND.code()).end();
                     }
                 }));
     }
@@ -163,11 +167,11 @@ public class CitrusRemoteApplication extends AbstractVerticle {
                     if (remoteResultFuture != null) {
                         response.putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON);
                         remoteResultFuture.timeout(timeout, TimeUnit.MILLISECONDS)
-                            .onSuccess(results ->
-                                    response.end(responseTransformer.render(results)))
-                            .onFailure(throwable -> response
-                                    .setStatusCode(HttpResponseStatus.PARTIAL_CONTENT.code())
-                                    .end(responseTransformer.render(Collections.emptyList())));
+                                .onSuccess(results ->
+                                        response.end(responseTransformer.render(results)))
+                                .onFailure(throwable -> response
+                                        .setStatusCode(HttpResponseStatus.PARTIAL_CONTENT.code())
+                                        .end(responseTransformer.render(Collections.emptyList())));
                     } else {
                         final List<RemoteResult> results = new ArrayList<>();
                         remoteTestResultReporter.getLatestResults().doWithResults(result ->
@@ -291,8 +295,8 @@ public class CitrusRemoteApplication extends AbstractVerticle {
                                 CitrusAppConfiguration.class))));
     }
 
-
-    private static Handler<RoutingContext> wrapThrowingHandler(ThrowingHandler<RoutingContext> handler) {
+    public static Handler<RoutingContext> wrapThrowingHandler(
+            ThrowingHandler<RoutingContext> handler) {
         return ctx -> {
             try {
                 handler.handle(ctx);
@@ -370,9 +374,5 @@ public class CitrusRemoteApplication extends AbstractVerticle {
         } catch (ClassNotFoundException e) {
             return false;
         }
-    }
-
-    interface ThrowingHandler<T> {
-        void handle(T t) throws Exception;
     }
 }
