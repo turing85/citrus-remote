@@ -14,6 +14,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <project.docs.version>${project.version}</project.docs.version>
     <java.version>17</java.version>
 
     <maven.version>3.9.8</maven.version>
@@ -45,7 +46,6 @@
     <maven.source.plugin.version>3.0.1</maven.source.plugin.version>
     <maven.surefire.plugin.version>2.22.2</maven.surefire.plugin.version>
     <maven.war.plugin.version>3.4.0</maven.war.plugin.version>
-    <maven.wagon.ssh.external.version>2.7</maven.wagon.ssh.external.version>
     <apache.rat.plugin.version>0.15</apache.rat.plugin.version>
 
     <citrus.version>4.3.2</citrus.version>
@@ -56,6 +56,7 @@
     <log4j2.version>2.22.1</log4j2.version>
     <slf4j.version>2.0.11</slf4j.version>
     <vertx.version>4.5.9</vertx.version>
+    <xstream.version>1.4.20</xstream.version>
 
     <!-- Documentation -->
     <javadoc.options>-Xdoclint:none</javadoc.options>
@@ -99,6 +100,31 @@
       </roles>
     </developer>
   </developers>
+
+  <scm>
+    <connection>scm:git:git@github.com:citrusframework/citrus-remote.git</connection>
+    <developerConnection>scm:git:git@github.com/citrusframework/citrus-remote.git</developerConnection>
+    <url>http://github.com/citrusframework/citrus-remote.git</url>
+  </scm>
+
+  <organization>
+    <name>Citrus Framework Community</name>
+    <url>https://citrusframework.org</url>
+  </organization>
+
+  <mailingLists>
+    <mailingList>
+      <name>Project Announcements</name>
+    </mailingList>
+    <mailingList>
+      <name>Project Development List</name>
+      <post>citrus-dev@googlegroups.com</post>
+    </mailingList>
+    <mailingList>
+      <name>Project User List</name>
+      <post>citrus-users@googlegroups.com</post>
+    </mailingList>
+  </mailingLists>
 
   <modules>
     <module>citrus-remote-server</module>
@@ -257,6 +283,16 @@
           <groupId>org.sonatype.plugins</groupId>
           <artifactId>nexus-staging-maven-plugin</artifactId>
           <version>${maven.nexus-staging.plugin.version}</version>
+          <dependencies>
+            <!--
+              TODO: Remove after OSSRH-66257, NEXUS-26993 are fixed,
+            -->
+            <dependency>
+              <groupId>com.thoughtworks.xstream</groupId>
+              <artifactId>xstream</artifactId>
+              <version>${xstream.version}</version>
+            </dependency>
+          </dependencies>
           <configuration>
             <nexusUrl>https://oss.sonatype.org/</nexusUrl>
             <serverId>sonatype-nexus-staging</serverId>
@@ -477,14 +513,44 @@
         <artifactId>apache-rat-plugin</artifactId>
       </plugin>
     </plugins>
-
-    <extensions>
-      <extension>
-        <groupId>org.apache.maven.wagon</groupId>
-        <artifactId>wagon-ssh-external</artifactId>
-        <version>${maven.wagon.ssh.external.version}</version>
-      </extension>
-    </extensions>
   </build>
+
+  <profiles>
+    <!-- Distribution Management -->
+    <profile>
+      <id>release-central</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+          </plugin>
+
+          <!-- Deploy using the sonatype nexus staging maven plugin -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <configuration>
+              <skip>true</skip>
+            </configuration>
+          </plugin>
+
+          <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>default-deploy</id>
+                <phase>deploy</phase>
+                <goals>
+                  <goal>deploy</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>

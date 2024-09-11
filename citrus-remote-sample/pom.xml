@@ -24,6 +24,7 @@
 
         <!-- Project setup -->
         <citrus.remote.report.directory>citrus-remote</citrus.remote.report.directory>
+        <citrus.remote.build.phase>package</citrus.remote.build.phase>
         <citrus.remote.test.phase>none</citrus.remote.test.phase>
         <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
 
@@ -39,6 +40,22 @@
 
     <build>
         <plugins>
+            <!-- Do not deploy this module to Maven central -->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <configuration>
+                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -59,7 +76,7 @@
                         <goals>
                             <goal>test-jar</goal>
                         </goals>
-                        <phase>package</phase>
+                        <phase>${citrus.remote.build.phase}</phase>
                         <configuration>
                             <mainClass>org.citrusframework.remote.sample.entrypoint.CustomEntrypoint</mainClass>
                         </configuration>
@@ -314,8 +331,23 @@
 
     <profiles>
         <profile>
+            <id>release-central</id>
+            <properties>
+                <citrus.remote.build.phase>none</citrus.remote.build.phase>
+                <citrus.remote.test.phase>none</citrus.remote.test.phase>
+                <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
+                <docker.build.phase>none</docker.build.phase>
+                <docker.remove.phase>none</docker.remove.phase>
+                <docker.start.phase>none</docker.start.phase>
+                <docker.stop.phase>none</docker.stop.phase>
+                <download.wget.phase>none</download.wget.phase>
+                <failsafe.phase>none</failsafe.phase>
+            </properties>
+        </profile>
+        <profile>
             <id>docker</id>
             <properties>
+                <citrus.remote.build.phase>package</citrus.remote.build.phase>
                 <citrus.remote.test.phase>integration-test</citrus.remote.test.phase>
                 <citrus.remote.verify.phase>verify</citrus.remote.verify.phase>
 
@@ -332,6 +364,7 @@
         <profile>
             <id>skip-citrus-remote</id>
             <properties>
+                <citrus.remote.build.phase>none</citrus.remote.build.phase>
                 <citrus.remote.test.phase>none</citrus.remote.test.phase>
                 <citrus.remote.verify.phase>none</citrus.remote.verify.phase>
 
