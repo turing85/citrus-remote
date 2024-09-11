@@ -30,8 +30,9 @@ permissions:
   pull-requests: write
 
 env:
-  TEST_REPORTS_ARTIFACT_NAME: will-be-read-from-env-file
   PR_NUMBER_ARTIFACT_NAME: will-be-read-from-env-file
+
+  TEST_REPORTS_ARTIFACT_NAME: will-be-read-from-env-file
   TEST_REPORTS_NAME: will-be-read-from-env-file
 
 jobs:

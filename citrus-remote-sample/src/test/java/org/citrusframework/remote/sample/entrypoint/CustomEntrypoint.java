@@ -30,7 +30,7 @@ public class CustomEntrypoint {
                 .forLogger(LogManager.getLogger("system.out"))
                 .buildPrintStream());
         CitrusRemoteServer.entrypoint(
-                args, List.of(CustomEntrypoint::getLogHandler, CustomEntrypoint::rorateLogHandler));
+                args, List.of(CustomEntrypoint::getLogHandler, CustomEntrypoint::rotateLogHandler));
     }
 
     private static void getLogHandler(Router router) {
@@ -61,7 +61,7 @@ public class CustomEntrypoint {
                 }));
     }
 
-    private static void rorateLogHandler(Router router) {
+    private static void rotateLogHandler(Router router) {
         router.delete("/citrus-logs")
                 .handler(CitrusRemoteApplication.wrapThrowingHandler(ctx -> {
                     HttpServerResponse response = ctx.response();

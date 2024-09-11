@@ -23,6 +23,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.ext.web.RequestBody;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -32,10 +33,9 @@ import org.citrusframework.CitrusInstanceStrategy;
 import org.citrusframework.TestClass;
 import org.citrusframework.main.CitrusAppConfiguration;
 import org.citrusframework.main.TestRunConfiguration;
-import org.citrusframework.remote.controller.RunController;
 import org.citrusframework.remote.job.RunJob;
 import org.citrusframework.remote.model.RemoteResult;
-import org.citrusframework.remote.reporter.RemoteTestResultReporter;
+import org.citrusframework.remote.listener.RemoteTestListener;
 import org.citrusframework.remote.transformer.JsonRequestTransformer;
 import org.citrusframework.remote.transformer.JsonResponseTransformer;
 import org.citrusframework.report.JUnitReporter;
@@ -48,7 +48,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -84,8 +83,8 @@ public class CitrusRemoteApplication extends AbstractVerticle {
     private Future<List<RemoteResult>> remoteResultFuture;
 
     /** Latest test reports */
-    private final RemoteTestResultReporter remoteTestResultReporter =
-            new RemoteTestResultReporter();
+    private final RemoteTestListener remoteTestListener =
+            new RemoteTestListener();
 
     /** Router customizations */
     private final List<Consumer<Router>> routerCustomizations;
@@ -111,16 +110,13 @@ public class CitrusRemoteApplication extends AbstractVerticle {
     @Override
     public void start() {
         CitrusInstanceManager.mode(CitrusInstanceStrategy.SINGLETON);
-        CitrusInstanceManager.addInstanceProcessor(citrus ->
-                citrus.addTestReporter(remoteTestResultReporter));
+        CitrusInstanceManager
+                .addInstanceProcessor(citrus -> citrus.addTestListener(remoteTestListener));
 
         Router router = Router.router(getVertx());
         router.route().handler(BodyHandler.create());
         router.route().handler(ctx -> {
-            logger.info(
-                    "{} {}",
-                    ctx.request().method(),
-                    ctx.request().uri());
+            logger.info("{} {}", ctx.request().method(), ctx.request().uri());
             ctx.next();
         });
         addHealthEndpoint(router);
@@ -140,7 +136,8 @@ public class CitrusRemoteApplication extends AbstractVerticle {
     private static void addHealthEndpoint(Router router) {
         router.get("/health")
                 .handler(wrapThrowingHandler(ctx ->
-                        ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
+                        ctx.response()
+                                .putHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
                                 .end("{ \"status\": \"UP\" }")));
     }
 
@@ -178,17 +175,17 @@ public class CitrusRemoteApplication extends AbstractVerticle {
                                         response.end(responseTransformer.render(results)))
                                 .onFailure(throwable -> response
                                         .setStatusCode(HttpResponseStatus.PARTIAL_CONTENT.code())
-                                        .end(responseTransformer.render(Collections.emptyList())));
+                                        .end(responseTransformer
+                                                .render(remoteTestListener.toRemoteResults())));
                     } else {
-                        final List<RemoteResult> results = new ArrayList<>();
-                        remoteTestResultReporter.getLatestResults().doWithResults(result ->
-                                results.add(RemoteResult.fromTestResult(result)));
+                        final List<RemoteResult> results = remoteTestListener.toRemoteResults();
+                        logger.info("results = {}", results.size());
                         response.end(responseTransformer.render(results));
                     }
                 }));
         router.get("/results")
-                .handler(ctx -> ctx.response().end(
-                        responseTransformer.render(remoteTestResultReporter.getTestReport())));
+                .handler(ctx -> ctx.response()
+                        .end(responseTransformer.render(remoteTestListener.generateTestReport())));
         router.get("/results/files")
                 .handler(wrapThrowingHandler(ctx -> {
                     File junitReportsFolder = new File(getJUnitReportsFolder());
@@ -239,31 +236,37 @@ public class CitrusRemoteApplication extends AbstractVerticle {
 
     private void addRunEndpoints(Router router) {
         router.get("/run")
-                .handler(wrapThrowingHandler(ctx -> {
-                    TestRunConfiguration runConfiguration = constructRunConfig(ctx);
-                    runTestsAsync(runConfiguration, ctx.response());
-                }));
+                .handler(wrapThrowingHandler(ctx ->
+                        runTestsAsync(constructRunConfig(ctx.request().params()), ctx.response())));
+        router.post("/run")
+                .handler(wrapThrowingHandler(ctx ->
+                        runTestsAsync(constructRunConfig(ctx.body()), ctx.response())));
         router.put("/run")
                 .handler(wrapThrowingHandler(ctx -> {
-                    remoteResultFuture = Future.fromCompletionStage(CompletableFuture.supplyAsync(
-                            constructTestRun(ctx)::call,
-                            executorService));
+                    remoteTestListener.reset();
+                    remoteResultFuture = startTestsAsync(constructRunConfig(ctx.body()));
                     ctx.response().end("");
-                }));
-        router.post("/run")
-                .handler(wrapThrowingHandler(ctx -> {
-                    HttpServerResponse response = ctx.response();
-                    TestRunConfiguration runConfiguration = requestTransformer.read(
-                            ctx.body().asString(),
-                            TestRunConfiguration.class);
-                    runTestsAsync(runConfiguration, response);
                 }));
     }
 
-    private TestRunConfiguration constructRunConfig(RoutingContext ctx)
+    public static Handler<RoutingContext> wrapThrowingHandler(
+            ThrowingHandler<RoutingContext> handler) {
+        return ctx -> {
+            try {
+                handler.handle(ctx);
+            } catch (Exception e) {
+                ctx.response()
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code())
+                        .end(e.getMessage());
+            }
+        };
+    }
+
+
+
+    private TestRunConfiguration constructRunConfig(MultiMap queryParams)
             throws UnsupportedEncodingException {
         TestRunConfiguration runConfiguration = new TestRunConfiguration();
-        MultiMap queryParams = ctx.request().params();
         if (queryParams.contains("engine")) {
             String engine = queryParams.get("engine");
             runConfiguration.setEngine(URLDecoder.decode(engine, ENCODING));
@@ -291,12 +294,16 @@ public class CitrusRemoteApplication extends AbstractVerticle {
         return runConfiguration;
     }
 
+    private TestRunConfiguration constructRunConfig(RequestBody body) {
+        return requestTransformer.read(body.asString(), TestRunConfiguration.class);
+    }
+
     private void runTestsAsync(
             TestRunConfiguration runConfiguration,
             HttpServerResponse response) {
         Future
                 .fromCompletionStage(CompletableFuture.supplyAsync(
-                        () -> runTests(runConfiguration),
+                        new RunJob(configuration, runConfiguration, remoteTestListener),
                         executorService))
                 .onSuccess(results ->
                         response.end(responseTransformer.render(results)))
@@ -305,16 +312,10 @@ public class CitrusRemoteApplication extends AbstractVerticle {
                         .end(error.getMessage()));
     }
 
-    private RunJob constructTestRun(RoutingContext ctx) {
-        TestRunConfiguration config = requestTransformer.read(
-                ctx.body().asString(),
-                TestRunConfiguration.class);
-        return new RunJob(config) {
-            @Override
-            public List<RemoteResult> run(TestRunConfiguration runConfiguration) {
-                return runTests(runConfiguration);
-            }
-        };
+    private Future<List<RemoteResult>> startTestsAsync(TestRunConfiguration testRunConfiguration) {
+        return Future.fromCompletionStage(CompletableFuture.supplyAsync(
+                new RunJob(configuration, testRunConfiguration, remoteTestListener),
+                executorService));
     }
 
     private void addConfigEndpoints(Router router) {
@@ -330,61 +331,18 @@ public class CitrusRemoteApplication extends AbstractVerticle {
                                 CitrusAppConfiguration.class))));
     }
 
-    public static Handler<RoutingContext> wrapThrowingHandler(
-            ThrowingHandler<RoutingContext> handler) {
-        return ctx -> {
-            try {
-                handler.handle(ctx);
-            } catch (Exception e) {
-                ctx.response().setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code())
-                        .end(e.getMessage());
-            }
-        };
-    }
-
-    /**
-     * Construct run controller and execute with given configuration.
-     * @param runConfiguration
-     * @return remote results
-     */
-    private List<RemoteResult> runTests(TestRunConfiguration runConfiguration) {
-        RunController runController = new RunController(configuration);
-
-        runController.setEngine(runConfiguration.getEngine());
-        runController.setIncludes(runConfiguration.getIncludes());
-
-        if (!runConfiguration.getDefaultProperties().isEmpty()) {
-            runController.addDefaultProperties(runConfiguration.getDefaultProperties());
-        }
-
-        if (runConfiguration.getPackages().isEmpty() && runConfiguration.getTestSources().isEmpty()) {
-            runController.runAll();
-        }
-
-        if (!runConfiguration.getPackages().isEmpty()) {
-            runController.runPackages(runConfiguration.getPackages());
-        }
-
-        if (!runConfiguration.getTestSources().isEmpty()) {
-            runController.runClasses(runConfiguration.getTestSources());
-        }
-
-        List<RemoteResult> results = new ArrayList<>();
-        remoteTestResultReporter.getLatestResults().doWithResults(result -> results.add(RemoteResult.fromTestResult(result)));
-        return results;
-    }
-
     /**
      * Find reports folder based in unit testing framework present on classpath.
      * @return
      */
     private String getJUnitReportsFolder() {
-
         if (isPresent("org.testng.annotations.Test")) {
             return "test-output" + File.separator + "junitreports";
         } else if (isPresent("org.junit.Test")) {
             JUnitReporter jUnitReporter = new JUnitReporter();
-            return jUnitReporter.getReportDirectory() + File.separator + jUnitReporter.getOutputDirectory();
+            return jUnitReporter.getReportDirectory() +
+                    File.separator +
+                    jUnitReporter.getOutputDirectory();
         } else {
             return new LoggingReporter().getReportDirectory();
         }

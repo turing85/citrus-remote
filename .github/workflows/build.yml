@@ -37,11 +37,16 @@ on:
       - 'LICENSE'
       - 'NOTICE'
 env:
-  JAVA_DISTRIBUTION: will-be-read-from-env-file
-  JAVA_VERSION: will-be-read-from-env-file
-  JAR_ARTIFACT_NAME: will-be-read-from-env-file
-  TEST_REPORTS_ARTIFACT_NAME: will-be-read-from-env-file
-  PR_NUMBER_ARTIFACT_NAME: will-be-read-from-env-file
+  CITRUS_REMOTE_LOGS_ARTIFACT: will be read from .env file
+
+  JAR_ARTIFACT_NAME: will be read from .env file
+
+  JAVA_DISTRIBUTION: will be read from .env file
+  JAVA_VERSION: will be read from .env file
+
+  PR_NUMBER_ARTIFACT_NAME: will be read from .env file
+
+  TEST_REPORTS_ARTIFACT_NAME: will be read from .env file
 
 permissions:
   actions: write
@@ -80,6 +85,16 @@ jobs:
             --no-transfer-progress \
             verify
 
+      - name: Print Citrus remote Logs
+        if: ${{ always() }}
+        run: |
+          if [[ -f citrus-remote-sample/target/container-logs/citrus.log ]]
+          then
+            cat citrus-remote-sample/target/container-logs/citrus.log
+          else
+            echo "(log file 'citrus-remote-sample/target/container-logs/citrus.log' not found)"
+          fi
+
       - name: Upload JARs
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
@@ -99,6 +114,15 @@ jobs:
           path: |
             **/target/failsafe-reports/TEST*.xml
             **/target/citrus-remote/junitreports/TEST*.xml
+          retention-days: 2
+
+      - name: Upload Citrus remote logs
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          if-no-files-found: error
+          name: ${{ env.CITRUS_REMOTE_LOGS_ARTIFACT }}
+          path: citrus-remote-sample/target/container-logs/citrus.log
           retention-days: 2
 
       - name: Get PR number
